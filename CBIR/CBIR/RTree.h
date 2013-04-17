@@ -280,11 +280,11 @@ protected:
     ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
   };
 
-  /// 用于求取knn的时候使用
+  /// 锟斤拷锟斤拷锟斤拷取knn锟斤拷时锟斤拷使锟斤拷
   struct NeighbourNode
   {
-	DATATYPE id;           //记录节点的id
-	double distance;     //记录两者之间的距离
+	DATATYPE id;           //锟斤拷录锟节碉拷锟斤拷id
+	double distance;     //锟斤拷录锟斤拷锟斤拷之锟斤拷锟侥撅拷锟斤拷
   };
 
   /// May be data or may be another subtree
@@ -366,9 +366,9 @@ protected:
   void RemoveAllRec(Node* a_node);
   void Reset();
   void CountRec(Node* a_node, int& a_count);
-  /*计算node的k近邻的函数，输入k，和结果数组的引用，结果类型的id列表*/
+  /*锟斤拷锟斤拷node锟斤拷k锟斤拷锟节的猴拷锟斤拷锟斤拷锟斤拷锟斤拷k锟斤拷锟酵斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟矫ｏ拷锟斤拷锟斤拷锟斤拷锟酵碉拷id锟叫憋拷*/
   ELEMTYPE minDist(Rect* a_rect, ELEMTYPE queryPoint[NUMDIMS]);
-  void KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double ndistance);
+  void KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double &ndistance);
 
 
   bool SaveRec(Node* a_node, RTFileStream& a_stream);
@@ -1625,7 +1625,7 @@ ELEMTYPE RTREE_QUAL::minDist(Rect* a_rect, ELEMTYPE queryPoint[NUMDIMS])
 		{
 			r = queryPoint[index];
 		}
-		distance *= ((queryPoint[index] - r)/scale) *((queryPoint[index] - r)/scale);
+		distance += ((queryPoint[index] - r)/scale) *((queryPoint[index] - r)/scale);
 	}
 	return distance;
 }
@@ -1638,7 +1638,7 @@ DATATYPE* RTREE_QUAL::KNN(ELEMTYPE queryPoint[NUMDIMS], int k)
 	NeighbourNode* knnList = new NeighbourNode[k];
 	ASSERT(knnList != NULL);
 	int i;
-	double max = (numeric_limits<double>::max)();   //随便取的值
+	double max = (numeric_limits<double>::max)();   //锟斤拷锟斤拷取锟斤拷值
 	for(i = 0; i < k; i++)
 	{
 		knnList[i].distance = max;
@@ -1650,24 +1650,24 @@ DATATYPE* RTREE_QUAL::KNN(ELEMTYPE queryPoint[NUMDIMS], int k)
 }
 
 RTREE_TEMPLATE
-void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double ndistance)
+void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double& ndistance)
 {
 	ASSERT(a_node);
 	ASSERT(knnList);
 	if(a_node->IsInternalNode()) // This is an internal node in the tree
 	{
-		Branch activebranch[MAXNODES];   //对节点按照minMax进行排序,将大于ndistance的直接抛掉
+		Branch activebranch[MAXNODES];   //锟皆节点按锟斤拷minMax锟斤拷锟斤拷锟斤拷锟斤拷,锟斤拷锟斤拷锟斤拷ndistance锟斤拷直锟斤拷锟阶碉拷
 		int activeCount = 1, i, index;
 		ELEMTYPE mindist, tempdist;
 		activebranch[0] = a_node->m_branch[0];
 		
-		//先对所有的分支进行一下排序，从近的分支开始找
+		//锟饺讹拷锟斤拷锟叫的凤拷支锟斤拷锟斤拷一锟斤拷锟斤拷锟津，从斤拷锟侥凤拷支锟斤拷始锟斤拷
 		for(index=1; index < a_node->m_count; ++index)                
 		{
 			mindist = minDist(&(a_node->m_branch[index].m_rect), queryPoint);
-			if(mindist >=ndistance)  //直接进行剪枝
+			if(mindist >=ndistance)  //直锟接斤拷锟叫硷拷枝
 				continue;
-			//插入排序
+			//锟斤拷锟斤拷锟斤拷锟斤拷
 			i = activeCount;
 			while(i > 0)
 			{
@@ -1682,30 +1682,30 @@ void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int 
 			}
 			activebranch[i] = a_node->m_branch[index];
 			activeCount += 1;
-		}//插入排序选择结束
+		}//锟斤拷锟斤拷锟斤拷锟斤拷选锟斤拷锟斤拷锟斤拷
 		for(index = 0; index < activeCount; index ++)
 		{
 			mindist = minDist(&(activebranch[index].m_rect), queryPoint);
-			if(mindist >=ndistance)  //后面的直接剪枝
+			if(mindist >=ndistance)  //锟斤拷锟斤拷锟斤拷直锟接硷拷枝
 				break;
-			KNearNeighbour(queryPoint, activebranch[index].m_child, k, knnList, ndistance);  //递归
+			KNearNeighbour(queryPoint, activebranch[index].m_child, k, knnList, ndistance);  //锟捷癸拷
 		}
 	}
 	else // This is a leaf node
 	{
 		int i, index, j;
-		for(index=0; index < a_node->m_count; ++index)  //对节点中的每一个进行求值比较
+		for(index=0; index < a_node->m_count; ++index)  //锟皆节碉拷锟叫碉拷每一锟斤拷锟斤拷锟斤拷锟斤拷值锟饺斤拷
 		{
 			double dist = 1.0;
 			ELEMTYPE* point;
 			point = a_node->m_branch[index].m_rect.m_min;
 			for(i = 0; i < NUMDIMS; i++)
 			{
-				dist *=  ((point[i] - queryPoint[i])/scale) * ((point[i] - queryPoint[i])/scale);  //这里对范围进行了缩小的处理
+				dist +=  ((point[i] - queryPoint[i])/scale) * ((point[i] - queryPoint[i])/scale);  //锟斤拷锟斤拷锟皆凤拷围锟斤拷锟斤拷锟斤拷锟斤拷小锟侥达拷锟斤拷
 			}
-			if(dist >= ndistance)     //直接不比较，比如有相似度一样的k+1个点，只是随机取k个
+			if(dist >= ndistance)     //直锟接诧拷锟饺较ｏ拷锟斤拷锟斤拷锟斤拷锟斤拷锟狡讹拷一锟斤拷锟斤拷k+1锟斤拷锟姐，只锟斤拷锟斤拷锟斤拷取k锟斤拷
 				continue;
-			//插入排序
+			//锟斤拷锟斤拷锟斤拷锟斤拷
 			j = k - 1;
 			while(j>0)
 			{

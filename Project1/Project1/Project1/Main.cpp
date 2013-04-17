@@ -20,6 +20,7 @@ bool MySearchCallback(int id, void* arg)
 void main()
 {
 	
+	/*Test Commit*/
 	ImageHandler imageHandler = ImageHandler();
 	int dimension = 2;
 	/*

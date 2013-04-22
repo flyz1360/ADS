@@ -22,8 +22,8 @@
 // RTree.h
 //
 
-#define RTREE_TEMPLATE template<class DATATYPE, class ELEMTYPE, int NUMDIMS, class ELEMTYPEREAL, int TMAXNODES, int TMINNODES>
-#define RTREE_QUAL RTree<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>
+#define RTREE_TEMPLATE template<class DATATYPE, class ELEMTYPE,int NUMDIMS, class ELEMTYPEREAL, int TMAXNODES, int TMINNODES>
+#define RTREE_QUAL RTree<DATATYPE, ELEMTYPE,NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>
 
 #define RTREE_DONT_USE_MEMPOOLS // This version does not contain a fixed memory allocator, fill in lines with EXAMPLE to implement one.
 #define RTREE_USE_SPHERICAL_VOLUME // Better split classification, may be slower on some systems
@@ -48,7 +48,7 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 ///        Instead of using a callback function for returned results, I recommend and efficient pre-sized, grow-only memory
 ///        array similar to MFC CArray or STL Vector for returning search query result.
 ///
-template<class DATATYPE, class ELEMTYPE, int NUMDIMS, 
+template<class DATATYPE, class ELEMTYPE,  int NUMDIMS,
          class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = 8, int TMINNODES = TMAXNODES / 2>
 class RTree
 {

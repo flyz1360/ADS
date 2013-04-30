@@ -14,11 +14,8 @@
 
 	  string fileName;
 	  string imagePath;
-	  int dimension = dim * dim * dim;  //三个维度上均分
 	  int w;
 	  ImageFeature feature;
-	  feature.dimNo = dimension;
-	  feature.data = new double[dimension];
 	  
 	  char buffer[40];
 	  while(!fileIn.eof())
@@ -35,7 +32,7 @@
 		 cvReleaseImage(&m_Image);
 
 		 fileOut << "rect ";
-		 for(w = 0; w < dimension; w++)
+		 for(w = 0; w < dim; w++)
 			 fileOut << feature.data[w] << " ";
 		 fileOut << endl;
 		 delete feature.data;

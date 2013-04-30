@@ -9,6 +9,7 @@
 #include "ImageHandler.h"
 #include"ColorHistogram.h"
 #include"ShapeFourierDescriptor.h"
+#include "FileDirectory.h"
 #include<fstream>
 using namespace std;
 using namespace cv;
@@ -54,9 +55,6 @@ void main()
 	
 	//1.图像文件相关的处理
 	ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
-	char* imageListFile = "G:\/学业卷H\/大三下课程\/高级数据结构\/课程作业\/ADS-Project1-Release\/ADS-Project1-Release\/data\/imagelist.txt"; //下面是图像文件存储路径
-	char* fileDepositoryPath = "G:\/学业卷H\/大三下课程\/高级数据结构\/课程作业\/ADS-Project1-Release\/ADS-Project1-Release\/data\/image\/image";  
-	char* outFeatureFile= "G:\/学业卷H\/大三下课程\/高级数据结构\/课程作业\/ADS-Project1-Release\/ADS-Project1-Release\/data\/shape_dim2.txt";//将提取后的特征放在这个文件里
 	
 	int dimension = 2;//颜色直方图的维度
 	imageHandler.inputImageInformation(imageListFile);//输入图像信息

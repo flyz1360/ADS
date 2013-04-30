@@ -100,6 +100,7 @@
 	 fileIn.close();
  }
 
+
 ImageFeature ImageHandler::parseImageFeature(string feature,int dim)
 {
 	ImageFeature imageFeature;

@@ -4,53 +4,8 @@
 
 
 
-/**
-dimension:指的是RGB每个维度上的份数
-*/
-ImageFeature ImageHandler::extractColorHistogram(char* imagePath, int dim)
-{
-	ImageFeature colorHis;
-	
-	int dimension = dim * dim * dim;  //三个维度上均分
-	colorHis.dimNo = dimension;
-	colorHis.data = new double[dimension];
-	int w, h, index;
-	CvScalar s;
-	for(w = 0; w < dimension; w++)
-		colorHis.data[w] = 0.0;
-	IplImage* m_Image = cvLoadImage(imagePath,CV_LOAD_IMAGE_COLOR);
-	if(imagePath != NULL)
-	{
-		int width = m_Image->width;
-		int height = m_Image->height;
-		int r, g, b;
-		double max = 1.0;
-		int divider = 256/dim;
-			
-		for(h = 0; h < height; h++)
-		{
-			for(w = 0; w <width; w++)
-			{
-				s = cvGet2D(m_Image,h, w);
-
-				index = ((int(s.val[0])) / divider + 1) *((int(s.val[1]))/divider + 1) * ((int(s.val[2]))/divider + 1); 
-				if(index == dimension)
-					index --;
-				colorHis.data[index] += 1.0;
-				if(colorHis.data[index] > max)
-					max = colorHis.data[index];
-			}
-		}
-		//进行归一化
-		for(w = 0; w < dimension; w++)
-			colorHis.data[w] /= max;
-	}
-	cvReleaseImage(&m_Image);
-
-	return colorHis;
-}
-
- void ImageHandler::exportRGBColorHistogramFile(char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim)
+ /*加载图像，将其交给特征提取器处理，然后输出特征*/
+ void ImageHandler::exportFeatrueFile(ImageFeature featureExtractor(IplImage*,int),char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim)
  {
 	  ifstream fileIn(imageListFile, ios::in);
 	  ofstream fileOut(outFeatureFile, ios::app);
@@ -59,19 +14,11 @@ ImageFeature ImageHandler::extractColorHistogram(char* imagePath, int dim)
 
 	  string fileName;
 	  string imagePath;
-	  
-	  int width,w;
-	  int height,h;
-	  int ri, gi, bi;
 	  int dimension = dim * dim * dim;  //三个维度上均分
-	  CvScalar s;
-	  ImageFeature colorHis;
-	  colorHis.dimNo = dimension;
-	  colorHis.data = new double[dimension];
-	  double divider = 256/dim + 1;
-	  int index;
-	  double max;
-	  double min;
+	  int w;
+	  ImageFeature feature;
+	  feature.dimNo = dimension;
+	  feature.data = new double[dimension];
 	  
 	  char buffer[40];
 	  while(!fileIn.eof())
@@ -83,132 +30,23 @@ ImageFeature ImageHandler::extractColorHistogram(char* imagePath, int dim)
 		 imagePath = fileDepositoryPath +"\/" + fileName;
 		 IplImage* m_Image = cvLoadImage(imagePath.c_str(),CV_LOAD_IMAGE_COLOR);
 		 //开始图像处理
-		 width = m_Image->width;
-		 height = m_Image->height;
-		 for(w = 0; w < dimension; w++)
-			colorHis.data[w] = 0.0;
-		 
-		 for(h = 0; h < height; h++)
-		 {
-			for(w = 0; w <width; w++)
-			{
-				s = cvGet2D(m_Image,h, w);
-				ri = (int)floor(s.val[0] / divider);
-				gi = (int)floor(s.val[1] / divider);
-				bi = (int)floor(s.val[2] / divider);
-				index = ri * dim * dim + gi * dim  + bi; 
-				if(index == dimension)
-					index --;
-				colorHis.data[index] += 1.0;
-			}
-		 }
-		 
-		//进行归一化
-		 
-		 max = 0.0;
-		 min = (numeric_limits<double>::max)();
-		 for(w = 0; w < dimension; w++)
-		 {
-		 	if(colorHis.data[w] > max)
-				max = colorHis.data[w];
-			if(colorHis.data[w]< min)
-				min = colorHis.data[w];
-		 }
-		 fileOut << "rect ";
-		 for(w = 0; w < dimension; w++)
-			 fileOut << (colorHis.data[w] - min) * 1000.0/(max-min) << " ";
-			//fileOut << colorHis.data[w]/max << " ";
-
-		 fileOut << endl;
+		 feature = featureExtractor(m_Image, dim);  /*调用特征提取函数*/
 		 //图像处理完毕
 		 cvReleaseImage(&m_Image);
-		 cout << fileName << endl;
+
+		 fileOut << "rect ";
+		 for(w = 0; w < dimension; w++)
+			 fileOut << feature.data[w] << " ";
+		 fileOut << endl;
+		 delete feature.data;
+		 cout << fileName << endl;   /*用于测试*/
 	 }
 	  fileOut<<"<< end >> ";
-	  delete colorHis.data;
 	  fileIn.close();
 	  fileOut.close();
  }
 
- void ImageHandler::exportLABColorHistogramFile(char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim)
- {
-	  ifstream fileIn(imageListFile, ios::in);
-	  ofstream fileOut(outFeatureFile, ios::app);
-	  fileOut << "tech nmos" << endl <<
-			"<< polysilicon >>" << endl;
 
-	  string fileName;
-	  string imagePath;
-	  
-	  int width,w;
-	  int height,h;
-	  int r, g, b;
-	  int dimension = dim * dim * dim;  //三个维度上均分
-	  CvScalar s;
-	  ImageFeature colorHis;
-	  colorHis.dimNo = dimension;
-	  colorHis.data = new double[dimension];
-	  int divider = 256/dim;
-	  int index;
-	  double max;
-	  double min;
-	  
-	  char buffer[30];
-	  while(!fileIn.eof())
-	  {
-		 
-		 fileIn.getline(buffer, 30);   //获取文件的名称，将其存在buffer中
-		 fileName = buffer;       
-		 
-		 imagePath = fileDepositoryPath +"\/" + fileName;
-		 IplImage* m_Image = cvLoadImage(imagePath.c_str(),CV_LOAD_IMAGE_COLOR);
-		 /*IplImage* m_Image1;*/
-		 
-		 //开始图像处理
-		 width = m_Image->width;
-		 height = m_Image->height;
-		 for(w = 0; w < dimension; w++)
-			colorHis.data[w] = 0.0;
-		 
-		 for(h = 0; h < height; h++)
-		 {
-			for(w = 0; w <width; w++)
-			{
-				s = cvGet2D(m_Image,h, w);
-
-				index = ((int(s.val[0])) / divider + 1) *((int(s.val[1]))/divider + 1) * ((int(s.val[2]))/divider + 1)-1; 
-				if(index == dimension)
-					index --;
-				colorHis.data[index] += 1.0;
-			}
-		 }
-		 
-		//进行归一化
-		 
-		 max = 0.0;
-		 min = (numeric_limits<double>::max)();
-		 for(w = 0; w < dimension; w++)
-		 {
-		 	if(colorHis.data[w] > max)
-				max = colorHis.data[w];
-			if(colorHis.data[w]< min)
-				min = colorHis.data[w];
-		 }
-		 fileOut << "rect ";
-		 for(w = 0; w < dimension; w++)
-			 fileOut << (colorHis.data[w] - min) * 1000.0/(max-min) << " ";
-			//fileOut << colorHis.data[w]/max << " ";
-
-		 fileOut << endl;
-		 //图像处理完毕
-		 cvReleaseImage(&m_Image);
-		 cout << fileName << endl;
-	 }
-	  fileOut<<"<< end >> ";
-	  delete colorHis.data;
-	  fileIn.close();
-	  fileOut.close();
- }
 
 
  //根据文件名的形式获得一个文件名标签

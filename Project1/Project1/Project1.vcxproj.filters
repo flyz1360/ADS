@@ -21,12 +21,24 @@
     <ClCompile Include="Main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ColorHistogram.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ShapeFourierDescriptor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageHandler.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="RTree.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorHistogram.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ShapeFourierDescriptor.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

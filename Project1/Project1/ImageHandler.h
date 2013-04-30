@@ -4,6 +4,7 @@
 #include<hash_map>
 #include<vector>
 
+#pragma once;
 using namespace std;
 
 
@@ -21,9 +22,10 @@ struct ImageFeature
 	double* data;
 };
 
-
-
-
+struct CPoint
+{
+	int x,y;
+};
 
 
 class ImageHandler{
@@ -44,14 +46,8 @@ public:
 
 	ImageTag static parseImageName(string imageName);//文件路径提取图片特征，并且根据目录和名称进行分类
 	void inputImageInformation(char* imageListFilePath); 
-
-	//直方图的提取和输出
-	ImageFeature extractColorHistogram(char* imagePath, int dimension); //提取颜色直方图
-	void exportRGBColorHistogramFile(char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim);
-	void exportLABColorHistogramFile(char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim);
+	
+	void exportFeatrueFile(ImageFeature featureExtractor(IplImage*,int),char* imageListFile, string fileDepositoryPath, char* outFeatureFile, int dim);
 	
 	ImageFeature parseImageFeature(string feature,int dim);
-
-	
-	
 };

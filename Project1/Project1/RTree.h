@@ -57,7 +57,9 @@ protected:
   struct Node;  // Fwd decl.  Used by other internal structs and iterator
 
 public:
-
+  
+  //visit time
+  int visitCount;
   // These constant must be declared after Branch and before Node struct
   // Stuck up here for MSVC 6 compiler.  NSVC .NET 2003 is much happier.
   enum
@@ -70,6 +72,7 @@ public:
 public:
 
   RTree();
+
   virtual ~RTree();
   
   /// Insert entry
@@ -84,7 +87,21 @@ public:
   /// \param a_max Max of bounding rect
   /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
   void Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId);
-  
+
+
+
+  /*----------------------R+ Remove-----------------------*/
+  /// Remove entry
+  /// \param a_min Min of bounding rect
+  /// \param a_max Max of bounding rect
+  /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
+  void NewRemove(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId);
+
+
+  /*------------------------------------------------------*/
+
+
+
   /// Find all within search rectangle
   /// \param a_min Min of search bounding rect
   /// \param a_max Max of search bounding rect
@@ -282,7 +299,11 @@ protected:
     ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
   };
 
+<<<<<<< HEAD
   // Data structure of inserted point
+=======
+  //Point struct
+>>>>>>> 1d6f4946d4848ac45c3933f16b0511cc75fe8aae
   struct Point
   {
 	  ELEMTYPE m[NUMDIMS];
@@ -385,6 +406,10 @@ protected:
 
   bool SaveRec(Node* a_node, RTFileStream& a_stream);
   bool LoadRec(Node* a_node, RTFileStream& a_stream);
+
+  bool NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_root);
+  bool NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
+  bool NewOverlap(Point* a_point, Rect* a_rectB);
   
   Node* m_root;                                    ///< Root of tree
   ELEMTYPEREAL m_unitSphereVolume;                 ///< Unit sphere constant for required number of dimensions
@@ -499,6 +524,8 @@ RTREE_QUAL::RTree()
   m_root->m_level = 0;
   scale = 1.0;
   m_unitSphereVolume = (ELEMTYPEREAL)UNIT_SPHERE_VOLUMES[NUMDIMS];
+
+  visitCount = 0;
 }
 
 
@@ -552,7 +579,7 @@ void RTREE_QUAL::Insert(const ELEMTYPE a[NUMDIMS],  const DATATYPE& a_dataId)
 
 
 RTREE_TEMPLATE
-void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId)
+	void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId)
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -570,6 +597,18 @@ void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMD
   }
 
   RemoveRect(&rect, a_dataId, &m_root);
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::NewRemove(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId)
+{
+	Point po;
+	for (int axis=0; axis<NUMDIMS; axis++)
+	{
+		po.m[axis] = apoint[axis];
+	}
+
+	NewRemoveRect(&po, a_dataId, &m_root);
 }
 
 
@@ -1644,6 +1683,91 @@ bool RTREE_QUAL::RemoveRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root)
   }
 }
 
+RTREE_TEMPLATE
+bool RTREE_QUAL::NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_root)
+{
+	ASSERT(*a_root);
+
+	Node* tempNode;
+	ListNode* reInsertList = NULL;
+
+	if (!NewRemoveRectRec(a_point, a_id, *a_root, &reInsertList))
+	{
+		while(reInsertList)
+		{
+			tempNode = reInsertList->m_node;
+
+			for (int index=0; index<tempNode->m_count; index++)
+			{
+				//插入
+			}
+
+			ListNode* remLNode = reInsertList;
+			reInsertList = reInsertList->m_next;
+
+			FreeNode(remLNode->m_node);
+			FreeListNode(remLNode);
+		}
+
+		if((*a_root)->m_count == 1 && (*a_root)->IsInternalNode())
+		{
+			tempNode = (*a_root)->m_branch[0].m_child;
+
+			ASSERT(tempNode);
+			FreeNode(*a_root);
+			*a_root = tempNode;
+		}
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+
+}
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode)
+{
+	ASSERT(a_node && a_listNode);
+	ASSERT(a_node->m_level >= 0);
+
+	if (node->IsInternalNode())
+	{
+		for (int index=0; index<a_node->m_count; index++)
+		{
+			if (NewOverlap(a_point, &(a_node->m_branch[index].m_rect)))
+			{
+				if (!NewRemoveRectRec(a_point, a_id, a_node->m_branch[index].m_child, a_listNode))
+				{
+					if (a_node->m_branch[index].m_child->m_count >= MINNODES)
+					{
+						a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+					}
+					else
+					{
+						ReInsert(a_node->m_branch[index].m_child, a_listNode);
+						DisconnectBranch(a_node, index);
+					}
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	else
+	{
+		for (int index=0; index<a_node->m_count; index++)
+		{
+			if (a_node->m_branch[index].m_child == (Node*)a_id)
+			{
+				DisconnectBranch(a_node, index); // Must return after this call as count has changed
+				return false;
+			}
+		}
+		return true;
+	}
+}
 
 // Delete a rectangle from non-root part of an index structure.
 // Called by RemoveRect.  Descends tree recursively,
@@ -1712,6 +1836,22 @@ bool RTREE_QUAL::Overlap(Rect* a_rectA, Rect* a_rectB)
   return true;
 }
 
+RTREE_TEMPLATE
+bool RTREE_QUAL::NewOverlap(Point* a_point, Rect* a_rectB)
+{
+	ASSERT(a_rectB);
+
+	for(int index=0; index < NUMDIMS; ++index)
+	{
+		if (a_point->m[index] > a_rectB->m_max[index] ||
+			a_rectB->m_min[index] > a_point->m[index])
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 // Add a node to the reinsertion list.  All its branches will later
 // be reinserted into the index structure.
@@ -1743,6 +1883,7 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, bool __cd
       {
         if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, a_resultCallback, a_context))
         {
+	      visitCount++;
           return false; // Don't continue searching
         }
       }
@@ -1763,6 +1904,7 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, bool __cd
           ++a_foundCount;
           if(!a_resultCallback(id, a_context))
           {
+			visitCount++;
             return false; // Don't continue searching
           }
         }
@@ -1770,6 +1912,7 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, bool __cd
     }
   }
 
+  visitCount++;
   return true; // Continue searching
 }
 
@@ -1829,7 +1972,7 @@ void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int 
 		int activeCount = 1, i, index;
 		ELEMTYPE mindist, tempdist;
 		activebranch[0] = a_node->m_branch[0];
-		
+
 		//先对所有的分支进行一下排序，从近的分支开始找
 		for(index=1; index < a_node->m_count; ++index)                
 		{
@@ -1894,6 +2037,7 @@ void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int 
 
 
 }
+
 
 
 #undef RTREE_TEMPLATE

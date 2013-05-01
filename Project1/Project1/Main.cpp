@@ -45,31 +45,65 @@ void constructImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char*
 		 }
 		 
 	 }
+	 printf("%d\n", i);
 	 fileIn.close();
 	
+}
+
+bool searchImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char* getFeatureFilePath, int dim)
+{
+	ifstream fileIn(getFeatureFilePath, ios::in);
+	int i = 0;
+
+	string feature;
+	ImageFeature imageFeature;
+	ImageHandler imageHandler;
+	char buffer[80];
+
+	while(!fileIn.eof())
+	{
+
+		fileIn.getline(buffer,80);
+		feature = buffer;
+
+		if(feature.length() > 0 && feature[0] == 'r')
+		{
+			imageFeature = imageHandler.parseImageFeature(feature,dim);
+			//rtree.Insert(imageFeature.data, imageFeature.data,i);  //将数据添加到RTree中
+			rtree.Search(imageFeature.data, imageFeature.data, MySearchCallback, NULL);
+			i++;
+			printf("%d\n", rtree.visitCount);
+			rtree.visitCount = 0;
+		}
+
+	}
+	printf("%d\n", i);
+	fileIn.close();
+
+	return 1;
 }
 
 
 void main()
 {
 	
-	//1.图像文件相关的处理
-	ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
-	
-	int dimension = 2;//颜色直方图的维度
-	imageHandler.inputImageInformation(imageListFile);//输入图像信息
+	////1.图像文件相关的处理
+	//ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
+	//
+	//int dimension = 2;//颜色直方图的维度
+	//imageHandler.inputImageInformation(imageListFile);//输入图像信息
 
-	//2.提取特征信息:通用，只要传入一个特征提取函数（第一个参数）
-	imageHandler.exportFeatrueFile(extractShapeFourierDescriptor,imageListFile,fileDepositoryPath,outFeatureFile,dimension);
+	////2.提取特征信息:通用，只要传入一个特征提取函数（第一个参数）
+	//imageHandler.exportFeatrueFile(extractShapeFourierDescriptor,imageListFile,fileDepositoryPath,outFeatureFile,dimension);
 	
 
 	//3.建立索引
 	//rtree模版将维度包含进去了，因此每次变换味道的时候，救得把r树声明修改一遍，我后面将维度从模版声明分离出来，使其可动态指定
-	/*
+	
 	RTree<int,double,8,double> rtree;
-	constructImageIndexFromFeatureFile(rtree,outFeatureFile,8);  //读取特征文件数据，建立索引
+	constructImageIndexFromFeatureFile(rtree,getFeatureFile,8);  //读取特征文件数据，建立索引
 
-
+	/*
 	//4.k近邻求取
 	int k = 10;
 	double feature[8] ={529.241, 26.9598, 1000, 550.809, 0.414766, 0, 7.88055, 217.752};
@@ -82,6 +116,10 @@ void main()
 		cout << i<<": "<< nameList[i] << endl;
 	}
 	*/
+
+	//搜索性能测试
+	searchImageIndexFromFeatureFile(rtree, getFeatureFile, 8);
+
 
 
 	//进行形状特征提取测试

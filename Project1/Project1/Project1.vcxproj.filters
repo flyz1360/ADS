@@ -41,7 +41,7 @@
     <ClInclude Include="ShapeFourierDescriptor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FileDirectory.h">
+    <ClInclude Include="fileDirectory.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

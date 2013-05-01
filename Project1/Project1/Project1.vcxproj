@@ -65,8 +65,7 @@
     <IncludePath>D:\openCV\opencv\include\opencv2;D:\openCV\opencv\build\include\opencv;D:\openCV\opencv\build\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>D:\opencv\build\include\opencv2;D:\opencv\build\include\opencv;D:\opencv\build\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\opencv\build\x64\vc10\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\openCV\opencv\build\include\opencv2;D:\openCV\opencv\build\include\opencv;D:\openCV\opencv\build\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -84,7 +83,6 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opencv_calib3d243d.lib;opencv_contrib243d.lib;opencv_core243d.lib;opencv_features2d243d.lib;opencv_flann243d.lib;opencv_gpu243d.lib;opencv_highgui243d.lib;opencv_imgproc243d.lib;opencv_legacy243d.lib;opencv_ml243d.lib;opencv_objdetect243d.lib;opencv_ts243d.lib;opencv_video243d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,7 +119,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ColorHistogram.h" />
-    <ClInclude Include="FileDirectory.h" />
     <ClInclude Include="ImageHandler.h" />
     <ClInclude Include="RTree.h" />
     <ClInclude Include="ShapeFourierDescriptor.h" />

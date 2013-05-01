@@ -77,6 +77,7 @@ public:
   /// \param a_max Max of bounding rect
   /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
   void Insert(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId);
+  void Insert(const ELEMTYPE a[NUMDIMS], const DATATYPE& a_dataId);
   
   /// Remove entry
   /// \param a_min Min of bounding rect
@@ -92,6 +93,7 @@ public:
   /// \param a_context User context to pass as parameter to a_resultCallback
   /// \return Returns the number of entries found
   int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
+  int Search(const ELEMTYPE a_min[NUMDIMS], bool __cdecl a_resultCallback(DATATYPE a_data, void* a_context), void* a_context);
   
   /// Remove all entries from tree
   void RemoveAll();
@@ -280,6 +282,12 @@ protected:
     ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
   };
 
+  // Data structure of inserted point
+  struct Point
+  {
+	  ELEMTYPE m[NUMDIMS];
+  };
+
   /// 用于求取knn的时候使用
   struct NeighbourNode
   {
@@ -339,13 +347,17 @@ protected:
   void FreeNode(Node* a_node);
   void InitNode(Node* a_node);
   void InitRect(Rect* a_rect);
+  bool InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
   bool InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
+  bool InsertPoint(Point* a_point, const DATATYPE& a_id, Node* a_node, int a_level);
   bool InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, int a_level);
   Rect NodeCover(Node* a_node);
   bool AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
   void DisconnectBranch(Node* a_node, int a_index);
   int PickBranch(Rect* a_rect, Node* a_node);
+  int PickBranch(Point* a_point, Node* a_node);
   Rect CombineRect(Rect* a_rectA, Rect* a_rectB);
+  Rect EnlargeRect(Point* a_point, Rect* a_rectB);
   void SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
   ELEMTYPEREAL RectSphericalVolume(Rect* a_rect);
   ELEMTYPEREAL RectVolume(Rect* a_rect);
@@ -516,6 +528,26 @@ void RTREE_QUAL::Insert(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMD
   }
   
   InsertRect(&rect, a_dataId, &m_root, 0);
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::Insert(const ELEMTYPE a[NUMDIMS],  const DATATYPE& a_dataId)
+{
+#ifdef _DEBUG
+  for(int index=0; index<NUMDIMS; ++index)
+  {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Point point;
+  
+  for(int axis=0; axis<NUMDIMS; ++axis)
+  {
+    point.m[axis] = a[axis];
+  }
+  
+  InsertPoint(&point, a_dataId, &m_root, 0);
 }
 
 
@@ -940,6 +972,55 @@ bool RTREE_QUAL::InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node,
   }
 }
 
+RTREE_TEMPLATE
+bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level)
+ {
+	 ASSERT(a_point && a_node && a_newNode);
+	 ASSERT(a_level >= 0 && a_level <= a_node->m_level);
+
+	 int index;
+	 Branch branch;
+	 Node* otherNode;
+
+	 // Still above level for insertion, go down tree recursively
+	 if(a_node->m_level > a_level)
+	 {
+		 index = PickBranch(a_point, a_node);
+		 if (!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
+		 {
+			 // Child was not split
+			 a_node->m_branch[index].m_rect = EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
+			 return false;
+		 }
+		 else // Child was split
+		 {
+			 a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+			 branch.m_child = otherNode;
+			 branch.m_rect = NodeCover(otherNode);
+			 return AddBranch(&branch, a_node, a_newNode);
+		 }
+	 }
+	 else if(a_node->m_level == a_level) // Have reached level for insertion. Add rect, split if necessary
+	 {
+		 Rect rect;
+		 for(int axis=0; axis<NUMDIMS; ++axis)
+		 {
+			 rect.m_min[axis] = a_point->m[axis];
+			 rect.m_max[axis] = a_point->m[axis];
+		 }
+		 branch.m_rect = rect;
+		 branch.m_child = (Node*) a_id;
+		 // Child field of leaves contains id of data record
+		 return AddBranch(&branch, a_node, a_newNode);
+	 }
+	 else
+	 {
+		 // Should never occur
+		 ASSERT(0);
+		 return false;
+	 }
+ }
+
 
 // Insert a data rectangle into an index structure.
 // InsertRect provides for splitting the root;
@@ -979,6 +1060,40 @@ bool RTREE_QUAL::InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, i
   }
 
   return false;
+}
+
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::InsertPoint(Point* a_point, const DATATYPE& a_id, Node* a_node, int a_level)
+{
+	ASSERT(a_point && a_root);
+	ASSERT(a_level >= 0 && a_level <= (*a_root)->m_level);
+#ifdef _DEBUG
+	for(int index=0; index < NUMDIMS; ++index)
+	{
+		ASSERT(a_rect->m_min[index] <= a_rect->m_max[index]);
+	}
+#endif //_DEBUG  
+
+	Node* newRoot;
+	Node* newNode;
+	Branch branch;
+
+	if(InsertPointPot(a_point, a_id, *a_root, &newNode, a_level))  // Root split
+	{
+		newRoot = AllocNode();  // Grow tree taller and new root
+		newRoot->m_level = (*a_root)->m_level + 1;
+		branch.m_rect = NodeCover(*a_root);
+		branch.m_child = *a_root;
+		AddBranch(&branch, newRoot, NULL);
+		branch.m_rect = NodeCover(newNode);
+		branch.m_child = newNode;
+		AddBranch(&branch, newRoot, NULL);
+		*a_root = newRoot;
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -1093,6 +1208,44 @@ int RTREE_QUAL::PickBranch(Rect* a_rect, Node* a_node)
 }
 
 
+RTREE_TEMPLATE
+int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
+{
+	ASSERT(a_point && a_node);
+
+	bool firstTime = true;
+	ELEMTYPEREAL increase;
+	ELEMTYPEREAL bestIncr = (ELEMTYPEREAL)-1;
+	ELEMTYPEREAL area;
+	ELEMTYPEREAL bestArea;
+	int best;
+	Rect tempRect;
+	Rect* curRect
+
+	for(int index=0; index < a_node->m_count; ++index)
+	{
+		curRect = &a_node->m_branch[index].m_rect;
+		area = CalcRectVolume(curRect);
+		tempRect = EnlargeRect(a_point, curRect);
+		increase = CalcRectVolume(&tempRect) - area;
+		if((increase < bestIncr) || firstTime)
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+			firstTime = false;
+		}
+		else if((increase == bestIncr) && (area < bestArea))
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+		}
+	}
+	return best;
+}
+
+
 // Combine two rectangles into larger one containing both
 RTREE_TEMPLATE
 typename RTREE_QUAL::Rect RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a_rectB)
@@ -1110,6 +1263,22 @@ typename RTREE_QUAL::Rect RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a_rectB)
   return newRect;
 }
 
+
+RTREE_TEMPLATE
+typename RTREE_QUAL::Rect RTREE_QUAL::EnlargeRect(Point* a_point, Rect* a_rectB)
+{
+	ASSERT(a_point && a_rectB);
+
+	Rect newRect;
+
+	for(int index = 0; index < NUMDIMS; ++index)
+	{
+		newRect.m_min[index] = Min(a_point->m[index], a_rectB->m_min[index]);
+		newRect.m_max[index] = Max(a_point->m[index], a_rectB->m_max[index]);
+	}
+
+	return newRect;
+}
 
 
 // Split a node.

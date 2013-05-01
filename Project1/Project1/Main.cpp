@@ -4,6 +4,7 @@
 // This is a direct port of the C version of the RTree test program.
 //
 #include <opencv2\opencv.hpp>
+#include "opencv2/core/core.hpp"
 #include <string>
 #include <iostream>
 #include "ImageHandler.h"
@@ -52,15 +53,40 @@ void constructImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char*
 
 void main()
 {
-	
+	char wndname[] = "Drawing Demo";
+	const int NUMBER = 100;
+	const int DELAY = 5;
+	int lineType = CV_AA; // change it to 8 to see non-antialiased graphics
+	int i, width = 1000, height = 700;
+	int x1 = 0, x2 = width, y1 = 0, y2 = height;
+	RNG rng(0xFFFFFFFF);
+
+	Mat image = Mat::zeros(height, width, CV_8UC3);
+	imshow(wndname, image);
+	for (i = 0; i < 100; i++)
+	{
+		Point center;
+		center.x = rng.uniform(x1, x2);
+		center.y = rng.uniform(y1, y2);
+
+		circle(image, center,1, Scalar(255, 255, 255),
+			1,  lineType);
+
+		imshow(wndname, image);
+	}
+	waitKey();
+
+
 	//1.图像文件相关的处理
-	ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
+	//ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
 	
 	int dimension = 2;//颜色直方图的维度
-	imageHandler.inputImageInformation(imageListFile);//输入图像信息
+	//imageHandler.inputImageInformation(imageListFile);//输入图像信息
+
+
 
 	//2.提取特征信息:通用，只要传入一个特征提取函数（第一个参数）
-	imageHandler.exportFeatrueFile(extractShapeFourierDescriptor,imageListFile,fileDepositoryPath,outFeatureFile,dimension);
+	//imageHandler.exportFeatrueFile(extractShapeFourierDescriptor,imageListFile,fileDepositoryPath,outFeatureFile,dimension);
 	
 
 	//3.建立索引
@@ -102,6 +128,4 @@ void main()
 	cvNamedWindow("mainWin", CV_WINDOW_AUTOSIZE); //定义窗口
     cvShowImage("mainWin", Img2 );   //在窗口显示
 	cvReleaseImage(&Img2);*/
-    cout << "Press any key to continue..."<< endl;
-    getchar(); // Wait for keypress on exit so we can read console output
 }

@@ -9,6 +9,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <limits> 
+#include <opencv2\opencv.hpp>
+#include<highgui.h>
+using namespace cv;
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -52,7 +55,7 @@ template<class DATATYPE, class ELEMTYPE,  int NUMDIMS,
          class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = 8, int TMINNODES = TMAXNODES / 2>
 class RTree
 {
-protected: 
+public: 
 
   struct Node;  // Fwd decl.  Used by other internal structs and iterator
 
@@ -99,7 +102,6 @@ public:
 
 
   /*------------------------------------------------------*/
-
 
 
   /// Find all within search rectangle
@@ -290,7 +292,9 @@ public:
   /// Get object at iterator position
   DATATYPE& GetAt(Iterator& a_it)                 { return *a_it; }
 
-protected:
+
+
+public:
 
   /// Minimal bounding rectangle (n-dimensional)
   struct Rect
@@ -299,11 +303,7 @@ protected:
     ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
   };
 
-<<<<<<< HEAD
   // Data structure of inserted point
-=======
-  //Point struct
->>>>>>> 1d6f4946d4848ac45c3933f16b0511cc75fe8aae
   struct Point
   {
 	  ELEMTYPE m[NUMDIMS];
@@ -347,6 +347,15 @@ protected:
     Node* m_node;                                 ///< Node
   };
 
+  struct BranchArray
+  {
+	  int m_count;
+	  int m_sortIndex[MAXNODES+1];
+	  double m_sortNumber[MAXNODES+1];
+	  double m_assistSortNumber[MAXNODES+1];
+	  Branch m_branchBuf[MAXNODES+1];
+  };
+
   /// Variables for finding a split partition
   struct PartitionVars
   {
@@ -370,13 +379,16 @@ protected:
   void InitRect(Rect* a_rect);
   bool InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
   bool InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
-  bool InsertPoint(Point* a_point, const DATATYPE& a_id, Node* a_node, int a_level);
+  bool InsertPoint(Point* a_point, const DATATYPE& a_id, Node** a_root, int a_level);
   bool InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, int a_level);
   Rect NodeCover(Node* a_node);
   bool AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
+  bool NewAddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
   void DisconnectBranch(Node* a_node, int a_index);
   int PickBranch(Rect* a_rect, Node* a_node);
+  int PickBranchSimple(Point* a_point, Node* a_node);
   int PickBranch(Point* a_point, Node* a_node);
+  bool ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, int* index);
   Rect CombineRect(Rect* a_rectA, Rect* a_rectB);
   Rect EnlargeRect(Point* a_point, Rect* a_rectB);
   void SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
@@ -410,13 +422,56 @@ protected:
   bool NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_root);
   bool NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
   bool NewOverlap(Point* a_point, Rect* a_rectB);
+
+  void NewSplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
+  void GetBranches(Node* a_node, Branch* a_branch, BranchArray* branchArray);
+  void ChoosePartition(BranchArray* branchArray, Node* a_node, Node* a_newNode);
+  void Partition(BranchArray* branchArray, Node* a_node, Node* a_newNode, int patitionAxis, double border);
+  void sortByAxis(BranchArray* branchArray, int partitionAxis);
+  void sortAssistNumByAxis(BranchArray* branchArray, int partitionAxis);
+  void ChoosePartitionValue(Point* a_point, Rect rectA, Rect rectB, double* bestBorder, int* bestPartition);
+  void setNode(Node* a_node, Point* a_point);
+
+  // need delete
+  void drawNode(Node* a_node , Mat* image, int wid)
+  {
+	  char wndname[] = "Drawing Demo";
+	  cv::Point p1, p2;
+	  if (a_node->IsInternalNode())
+	  {
+		  for (int i = 0;i < a_node->m_count;i++)
+		  {
+			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/7;
+			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/7;
+			  p2.x = a_node->m_branch[i].m_rect.m_min[0]/7;
+			  p2.y = a_node->m_branch[i].m_rect.m_min[1]/7;
+			  rectangle( *image, p1, p2, Scalar(255, 255, 255), wid, CV_AA );
+			  imshow(wndname, *image);
+			  if(waitKey(5) >= 0) return;
+			  if (wid > 2)
+			  drawNode(a_node->m_branch[i].m_child, image, wid-2);
+			  else
+				  drawNode(a_node->m_branch[i].m_child, image, wid);
+		  }
+	  }
+	  else
+	  {
+		  for (int i = 0;i < a_node->m_count;i++)
+		  {
+			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/7;
+			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/7;
+			  circle( *image, p1, 1, Scalar(255, 255, 255), 1, CV_AA );
+		  }
+	  }
+  }
   
-  Node* m_root;                                    ///< Root of tree
+                                   ///< Root of tree
   ELEMTYPEREAL m_unitSphereVolume;                 ///< Unit sphere constant for required number of dimensions
   double scale;
+  Node* m_root;   
 
   public:
-	   DATATYPE*  KNN(ELEMTYPE queryPoint[NUMDIMS], int k);
+		DATATYPE*  KNN(ELEMTYPE queryPoint[NUMDIMS], int k);
 };
 
 
@@ -560,13 +615,6 @@ void RTREE_QUAL::Insert(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMD
 RTREE_TEMPLATE
 void RTREE_QUAL::Insert(const ELEMTYPE a[NUMDIMS],  const DATATYPE& a_dataId)
 {
-#ifdef _DEBUG
-  for(int index=0; index<NUMDIMS; ++index)
-  {
-    ASSERT(a_min[index] <= a_max[index]);
-  }
-#endif //_DEBUG
-
   Point point;
   
   for(int axis=0; axis<NUMDIMS; ++axis)
@@ -579,7 +627,7 @@ void RTREE_QUAL::Insert(const ELEMTYPE a[NUMDIMS],  const DATATYPE& a_dataId)
 
 
 RTREE_TEMPLATE
-	void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId)
+void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId)
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -648,8 +696,6 @@ int RTREE_QUAL::Count()
   return count;
 }
 
-
-
 RTREE_TEMPLATE
 void RTREE_QUAL::CountRec(Node* a_node, int& a_count)
 {
@@ -684,7 +730,6 @@ bool RTREE_QUAL::Load(const char* a_fileName)
 
   return result;
 };
-
 
 
 RTREE_TEMPLATE
@@ -1025,18 +1070,39 @@ bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_no
 	 if(a_node->m_level > a_level)
 	 {
 		 index = PickBranch(a_point, a_node);
-		 if (!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
+		 // pickBranch fail, need split
+		 if (index == -1)
 		 {
-			 // Child was not split
-			 a_node->m_branch[index].m_rect = EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
-			 return false;
+			 Node* uselessNode;
+			 if (ReorganizeNode(a_point, a_node, a_newNode, &index))
+			 {
+				 // Child was split
+				 ASSERT(!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &uselessNode, a_level));
+				 a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+				 return true;
+			 }
+			 else
+			 {
+				ASSERT(!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &uselessNode, a_level));
+				a_node->m_branch[index].m_rect = EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
+				return false;
+			 }
 		 }
-		 else // Child was split
+		 else
 		 {
-			 a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
-			 branch.m_child = otherNode;
-			 branch.m_rect = NodeCover(otherNode);
-			 return AddBranch(&branch, a_node, a_newNode);
+			 if (!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
+			 {
+				 // Child was not split
+				 a_node->m_branch[index].m_rect = EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
+				 return false;
+			 }
+			 else // Child was split
+			 {
+				 a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+				 branch.m_child = otherNode;
+				 branch.m_rect = NodeCover(otherNode);
+				 return NewAddBranch(&branch, a_node, a_newNode);
+			 }
 		 }
 	 }
 	 else if(a_node->m_level == a_level) // Have reached level for insertion. Add rect, split if necessary
@@ -1050,7 +1116,7 @@ bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_no
 		 branch.m_rect = rect;
 		 branch.m_child = (Node*) a_id;
 		 // Child field of leaves contains id of data record
-		 return AddBranch(&branch, a_node, a_newNode);
+		 return NewAddBranch(&branch, a_node, a_newNode);
 	 }
 	 else
 	 {
@@ -1103,16 +1169,10 @@ bool RTREE_QUAL::InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, i
 
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::InsertPoint(Point* a_point, const DATATYPE& a_id, Node* a_node, int a_level)
+bool RTREE_QUAL::InsertPoint(Point* a_point, const DATATYPE& a_id, Node** a_root, int a_level)
 {
 	ASSERT(a_point && a_root);
 	ASSERT(a_level >= 0 && a_level <= (*a_root)->m_level);
-#ifdef _DEBUG
-	for(int index=0; index < NUMDIMS; ++index)
-	{
-		ASSERT(a_rect->m_min[index] <= a_rect->m_max[index]);
-	}
-#endif //_DEBUG  
 
 	Node* newRoot;
 	Node* newNode;
@@ -1124,10 +1184,10 @@ bool RTREE_QUAL::InsertPoint(Point* a_point, const DATATYPE& a_id, Node* a_node,
 		newRoot->m_level = (*a_root)->m_level + 1;
 		branch.m_rect = NodeCover(*a_root);
 		branch.m_child = *a_root;
-		AddBranch(&branch, newRoot, NULL);
+		NewAddBranch(&branch, newRoot, NULL);
 		branch.m_rect = NodeCover(newNode);
 		branch.m_child = newNode;
-		AddBranch(&branch, newRoot, NULL);
+		NewAddBranch(&branch, newRoot, NULL);
 		*a_root = newRoot;
 		return true;
 	}
@@ -1165,7 +1225,7 @@ typename RTREE_QUAL::Rect RTREE_QUAL::NodeCover(Node* a_node)
 
 // Add a branch to a node.  Split the node if necessary.
 // Returns 0 if node not split.  Old node updated.
-// Returns 1 if node split, sets *new_node to address of new node.
+// Returns 1 if node split, sets *new_node to  address of new node.
 // Old node updated, becomes one of two.
 RTREE_TEMPLATE
 bool RTREE_QUAL::AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode)
@@ -1187,6 +1247,29 @@ bool RTREE_QUAL::AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode)
     SplitNode(a_node, a_branch, a_newNode);
     return true;
   }
+}
+
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::NewAddBranch(Branch* a_branch, Node* a_node, Node** a_newNode)
+{
+	ASSERT(a_branch);
+	ASSERT(a_node);
+
+	if(a_node->m_count < MAXNODES)  // Split won't be necessary
+	{
+		a_node->m_branch[a_node->m_count] = *a_branch;
+		++a_node->m_count;
+
+		return false;
+	}
+	else
+	{
+		ASSERT(a_newNode);
+
+ 		NewSplitNode(a_node, a_branch, a_newNode);
+		return true;
+	}
 }
 
 
@@ -1246,9 +1329,8 @@ int RTREE_QUAL::PickBranch(Rect* a_rect, Node* a_node)
   return best;
 }
 
-
 RTREE_TEMPLATE
-int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
+int RTREE_QUAL::PickBranchSimple(Point* a_point, Node* a_node)
 {
 	ASSERT(a_point && a_node);
 
@@ -1259,11 +1341,10 @@ int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
 	ELEMTYPEREAL bestArea;
 	int best;
 	Rect tempRect;
-	Rect* curRect
 
 	for(int index=0; index < a_node->m_count; ++index)
 	{
-		curRect = &a_node->m_branch[index].m_rect;
+		Rect* curRect = &a_node->m_branch[index].m_rect;
 		area = CalcRectVolume(curRect);
 		tempRect = EnlargeRect(a_point, curRect);
 		increase = CalcRectVolume(&tempRect) - area;
@@ -1284,6 +1365,259 @@ int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
 	return best;
 }
 
+
+RTREE_TEMPLATE
+int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
+{
+	ASSERT(a_point && a_node);
+
+	bool firstTime = true;
+	ELEMTYPEREAL increase;
+	ELEMTYPEREAL bestIncr = (ELEMTYPEREAL)-1;
+	ELEMTYPEREAL area;
+	ELEMTYPEREAL bestArea;
+	int best = -1;
+	Rect tempRect;
+	Rect* curRect;
+	bool isOverlap;
+
+	for(int index=0; index < a_node->m_count; ++index)
+	{
+		if (NewOverlap(a_point, &a_node->m_branch[index].m_rect))
+		{
+			return index;
+		}
+		curRect = &a_node->m_branch[index].m_rect;
+		area = CalcRectVolume(curRect);
+		tempRect = EnlargeRect(a_point, curRect);
+		increase = CalcRectVolume(&tempRect) - area;
+		isOverlap = false;
+		for (int i =0;i < a_node->m_count;i++)
+		{
+			if(i == index) continue;
+			if (Overlap(&tempRect, &a_node->m_branch[i].m_rect))
+			{
+				isOverlap  = true;
+				break;
+			}
+		}
+
+		if(((increase < bestIncr) || firstTime) && !isOverlap)
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+			firstTime = false;
+		}
+		else if((increase == bestIncr) && (area < bestArea) && !isOverlap)
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+		}
+	}
+	
+	return best;
+}
+
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, int* index)
+{
+	ASSERT(a_point && a_node);
+
+	*index = PickBranchSimple(a_point, a_node);
+	Rect tempRect;
+
+	int  j = 0;
+	bool isSplit = false;
+	int bestPartition;
+	double bestBorder;
+	tempRect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
+	for (int i = 0;i < a_node->m_count ;i++)
+	{
+		if (i == *index)
+		{
+			continue;
+		}
+		if (Overlap(&a_node->m_branch[i].m_rect, &tempRect))
+		{
+
+			ChoosePartitionValue(a_point, tempRect, a_node->m_branch[i].m_rect, &bestBorder, &bestPartition);
+			if (a_node->m_count  < MAXNODES)
+			{
+				//split branch
+				BranchArray branchArray;
+				GetBranches(a_node->m_branch[*index].m_child, NULL, &branchArray);
+				Branch branch;
+				branch.m_child =  AllocNode();
+				branch.m_child->m_level =
+					a_node->m_branch[*index].m_child->m_level = a_node->m_level - 1;
+
+				Partition(&branchArray,a_node->m_branch[*index].m_child, branch.m_child, 
+					bestPartition, bestBorder);
+
+				if (a_node->m_branch[*index].m_child->m_count == 0)
+				{
+					for(int axis=0; axis<NUMDIMS; ++axis)
+					{
+						a_node->m_branch[*index].m_rect.m_min[axis] = a_point->m[axis];
+						a_node->m_branch[*index].m_rect.m_max[axis] = a_point->m[axis];
+					}
+					setNode(a_node->m_branch[*index].m_child, a_point);
+				}
+				else
+					a_node->m_branch[*index].m_rect = NodeCover(a_node->m_branch[*index].m_child);
+				if (branch.m_child->m_count == 0)
+				{
+					for(int axis=0; axis<NUMDIMS; ++axis)
+					{
+						branch.m_rect.m_min[axis] = a_point->m[axis];
+						branch.m_rect.m_max[axis] = a_point->m[axis];
+					}
+					setNode(branch.m_child, a_point);
+				}
+				else
+					branch.m_rect = NodeCover( branch.m_child);		
+				NewAddBranch(&branch, a_node, NULL);
+				if (a_point->m[bestPartition] > bestBorder)
+				*index = a_node->m_count - 1;
+				tempRect = a_node->m_branch[*index].m_rect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
+			}
+			else
+			{
+				//split node   rewrite newSplit
+				isSplit = true;
+				BranchArray branchArray1;
+				int level = a_node->m_level;
+				GetBranches(a_node, NULL, &branchArray1);
+				*a_newNode = AllocNode();
+				(*a_newNode)->m_level = a_node->m_level = level;
+				
+				if (a_point->m[bestPartition] < bestBorder)
+				{
+					Partition(&branchArray1, a_node, *a_newNode, bestPartition, bestBorder);
+				}
+				else
+					Partition(&branchArray1,  *a_newNode, a_node, bestPartition, bestBorder);
+				if (a_node->m_count == 0)
+				{
+					setNode(a_node, a_point);
+					*index = 0;
+					return isSplit;
+				}
+				else
+				{
+					*index = PickBranchSimple(a_point, a_node);
+					tempRect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
+				}
+			}
+		}
+	}
+
+	return isSplit;
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::setNode(Node* a_node, Point* a_point)
+{
+	if (a_node->m_level == 1)
+	{
+		Branch branch;
+		for(int axis=0; axis<NUMDIMS; ++axis)
+		{
+			branch.m_rect.m_min[axis] = a_point->m[axis];
+			branch.m_rect.m_max[axis] = a_point->m[axis];
+		}
+		branch.m_child = AllocNode();
+		branch.m_child->m_count = 0;
+		branch.m_child->m_level = 0;
+		NewAddBranch(&branch, a_node, NULL);
+	}
+	else if(a_node->m_level > 1)
+	{
+		a_node->m_count = 0;
+		Branch branch;
+		for(int axis=0; axis<NUMDIMS; ++axis)
+		{
+			branch.m_rect.m_min[axis] = a_point->m[axis];
+			branch.m_rect.m_max[axis] = a_point->m[axis];
+		}
+		branch.m_child = AllocNode();
+		branch.m_child->m_level = a_node->m_level-1;
+		branch.m_child->m_count = 0;
+		setNode(branch.m_child, a_point);
+		NewAddBranch(&branch, a_node, NULL);
+	}
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::ChoosePartitionValue(Point* a_point, Rect rectA, Rect rectB, double* bestBorder, int* bestPartition)
+{
+	double bestRatio, tempRatio, bestWidth, tempPartitionValue;
+	bool firstTime = true;
+	for (int i = 0;i < NUMDIMS; i++)
+	{
+		// possible
+		if ((a_point->m[i] < rectB.m_min[i] || a_point->m[i] > rectB.m_max[i]) && (a_point->m[i] >= rectA.m_min[i] && a_point->m[i] <= rectA.m_max[i])) //
+		{
+			if ((rectA.m_min[i] < rectB.m_min[i] && rectA.m_max[i] > rectB.m_min[i])
+			|| (rectA.m_min[i] < rectB.m_max[i] && rectA.m_max[i] > rectB.m_max[i]))
+			{
+				tempPartitionValue = a_point->m[i];
+				if (a_point->m[i] < rectB.m_min[i] )
+					tempPartitionValue += 0.0001;
+				else
+					tempPartitionValue -= 0.0001;
+
+				// choose best
+				tempRatio = (tempPartitionValue - rectA.m_min[i]) / ( rectA.m_max[i] - tempPartitionValue);
+				if (tempRatio > 1)
+					tempRatio = 1 / tempRatio;
+				if (firstTime || (rectA.m_max[i] - rectA.m_min[i] > 1.1 * bestWidth && tempRatio >= 0.5))
+				{
+					bestRatio = tempRatio;
+					bestWidth = rectA.m_max[i] - rectA.m_min[i];
+					*bestBorder = tempPartitionValue;
+					*bestPartition = i;
+					firstTime = false;
+				}
+				else if(rectA.m_max[i] - rectA.m_min[i] >  bestWidth && tempRatio > bestRatio)
+				{
+					bestRatio = tempRatio;
+					bestWidth = rectA.m_max[i] - rectA.m_min[i];
+					*bestBorder = tempPartitionValue;
+					*bestPartition  = i;
+				}
+
+				// another method
+				if (a_point->m[i] < rectB.m_min[i] )
+					tempPartitionValue = rectB.m_min[i] - 0.0001;
+				else
+					tempPartitionValue = rectB.m_max[i] + 0.0001;
+
+				tempRatio = (tempPartitionValue - rectA.m_min[i]) / ( rectA.m_max[i] - tempPartitionValue);
+				if (tempRatio > 1)
+					tempRatio = 1 / tempRatio;
+				if (firstTime || (rectA.m_max[i] - rectA.m_min[i] > 1.1 * bestWidth && tempRatio >= 0.5))
+				{
+					bestRatio = tempRatio;
+					bestWidth = rectA.m_max[i] - rectA.m_min[i];
+					*bestBorder = tempPartitionValue;
+					*bestPartition  = i;
+					firstTime = false;
+				}
+				else if(rectA.m_max[i] - rectA.m_min[i] >  bestWidth && tempRatio > bestRatio)
+				{
+					bestRatio = tempRatio;
+					bestWidth = rectA.m_max[i] - rectA.m_min[i];
+					*bestBorder = tempPartitionValue;
+					*bestPartition  = i;
+				}
+			}
+		}	
+	}
+}
 
 // Combine two rectangles into larger one containing both
 RTREE_TEMPLATE
@@ -1348,6 +1682,266 @@ void RTREE_QUAL::SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode)
   LoadNodes(a_node, *a_newNode, parVars);
   
   ASSERT((a_node->m_count + (*a_newNode)->m_count) == parVars->m_total);
+}
+
+
+RTREE_TEMPLATE
+void RTREE_QUAL::NewSplitNode(Node* a_node, Branch* a_branch, Node** a_newNode)
+{
+	ASSERT(a_node);
+	//ASSERT(a_branch);
+
+	// Could just use local here, but member or external is faster since it is reused
+	BranchArray branchArray;
+	int level;
+
+	// Load all the branches into a buffer, initialize old node
+	level = a_node->m_level;
+	GetBranches(a_node, a_branch, &branchArray);
+
+	// Find partition Rect
+	*a_newNode = AllocNode();
+	(*a_newNode)->m_level = a_node->m_level = level;
+	ChoosePartition(&branchArray,   a_node, *a_newNode);
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::GetBranches(Node* a_node, Branch* a_branch, BranchArray* branchArray)
+{
+	ASSERT(a_node);
+
+	//ASSERT(a_node->m_count == MAXNODES);
+
+	// Load the branch buffer
+	for(int index=0; index < a_node->m_count; ++index)
+	{
+		branchArray->m_branchBuf[index] = a_node->m_branch[index];
+	}
+	branchArray->m_count = a_node->m_count;
+	if (a_branch != NULL)
+	{
+		branchArray->m_branchBuf[a_node->m_count] = *a_branch;
+		branchArray->m_count ++;
+	}
+	InitNode(a_node);
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* a_newNode)
+{
+	int i, j;
+	int splitNumber, bestSplitNumber, bestPatition, coverNum = MINNODES;
+	bool firstTime = true;
+	double border, bottom, bestDistance, bestBorder;
+
+	// 选取最佳分割维度
+	for (i = 0;i < NUMDIMS;i++)
+	{
+		splitNumber = 0;
+		sortAssistNumByAxis(branchArray, i);
+		bottom = branchArray->m_sortNumber[branchArray->m_sortIndex[0]];
+		border = branchArray->m_assistSortNumber[branchArray->m_sortIndex[0]];
+		for (j = 1;j < MINNODES;j++)
+		{
+			border = Max(border, branchArray->m_assistSortNumber[branchArray->m_sortIndex[j]]);
+		}
+		for (;j < branchArray->m_count;j++)
+		{
+			//if (branchArray->m_sortNumber[branchArray->m_sortIndex[j]] > border)
+			//{
+			//	break;
+			//}
+			if (branchArray->m_sortNumber[branchArray->m_sortIndex[j]] <= border)
+			{
+				splitNumber++;
+			}
+			if (branchArray->m_assistSortNumber[branchArray->m_sortIndex[j]] <= border)
+			{
+				coverNum++;
+			}
+		}
+		if (coverNum > MAXNODES)
+		{
+			continue;
+		}
+		if ((firstTime || splitNumber < bestSplitNumber))//最大的min不能比border宽 branchArray->m_sortNumber[branchArray->m_sortIndex[branchArray->m_count]] > border
+		{
+			bestPatition = i;
+			bestSplitNumber = splitNumber;
+			bestDistance = border - bottom;
+			bestBorder = border;
+			firstTime = false;
+		}
+		else if (splitNumber == bestSplitNumber && (border - bottom) > bestDistance )
+		{
+			bestPatition = i;
+			bestDistance = border - bottom;
+			bestBorder = border;
+		}
+	}
+
+	Partition(branchArray, a_node, a_newNode, bestPatition, bestBorder);
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::Partition(BranchArray* branchArray, Node* a_node, Node* a_newNode, int bestPatition, double bestBorder)
+{
+	Branch branch;
+	sortByAxis(branchArray, bestPatition);
+	for (int i = 0;i < branchArray->m_count;i++)
+	{
+		if (branchArray->m_assistSortNumber[branchArray->m_sortIndex[i]] <= bestBorder)
+		{
+			NewAddBranch(&branchArray->m_branchBuf[branchArray->m_sortIndex[i]], a_node, NULL);
+		}
+		else if (branchArray->m_sortNumber[branchArray->m_sortIndex[i]] > bestBorder)
+		{
+			NewAddBranch(&branchArray->m_branchBuf[branchArray->m_sortIndex[i]], a_newNode, NULL);
+		}
+		else
+		{
+			BranchArray bra;
+			GetBranches(branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child, NULL, &bra);
+			branch.m_child =  AllocNode();
+			branch.m_child->m_level =
+				branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child->m_level = a_node->m_level - 1;
+			//branch.m_rect = branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect;
+
+			//sortByAxis(&bra, bestPatition);
+			//if (bra.m_sortNumber[0] == bra.m_assistSortNumber[0])
+			//{
+			//	for (int j = 0;j < bra.m_count;j++)
+			//	{
+			//		if (bra.m_sortNumber[bra.m_sortIndex[j]] < bestBorder)
+			//		{
+			//			branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect.m_max[bestPatition] = bra.m_sortNumber[bra.m_sortIndex[j]];
+			//		}
+			//		else
+			//		{
+			//			 branch.m_rect.m_min[bestPatition]= bra.m_sortNumber[bra.m_sortIndex[j]];
+			//			break;
+			//		}
+			//	}
+			//}
+			//else
+			//{
+			//	branch.m_rect.m_min[bestPatition] = bestBorder+ 0.0000001;
+			//	branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect.m_max[bestPatition] = bestBorder;
+			//}
+
+
+			Partition(&bra,branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child, branch.m_child, 
+				bestPatition, bestBorder);
+			branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect = NodeCover(branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child);
+			branch.m_rect = NodeCover( branch.m_child);
+			NewAddBranch(&branchArray->m_branchBuf[branchArray->m_sortIndex[i]], a_node, NULL);
+			NewAddBranch(&branch, a_newNode, NULL);
+		}
+	}
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::sortByAxis(BranchArray* branchArray, int partitionAxis)
+{
+	int i, j;
+	for (i = 0;i < branchArray->m_count;i++)
+	{
+		if (branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis] > branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis])
+		{
+			branchArray->m_sortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis];
+			branchArray->m_assistSortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis];
+		}
+		else
+		{
+			branchArray->m_sortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis];
+			branchArray->m_assistSortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis];
+		}
+	}
+	double best, lastBest = -1;
+	int bestNum;
+	bool firstTime = true;
+	bool *visited = new bool[MAXNODES+1];
+	for (i = 0;i < MAXNODES+1;i++)
+	{
+		visited[i] = false;
+	}
+
+	for (i = 0;i < branchArray->m_count;i++)
+	{
+		for (j = 0;j < branchArray->m_count;j++)
+		{
+			if ((firstTime || branchArray->m_sortNumber[j] < best) && 
+				(branchArray->m_sortNumber[j] > lastBest || (branchArray->m_sortNumber[j] == lastBest && visited[j] == false)))
+			{
+					best = branchArray->m_sortNumber[j];
+					bestNum = j;
+					firstTime = false;
+			}
+		}
+		firstTime = true;
+		lastBest = best;
+		visited[bestNum] = true;
+		branchArray->m_sortIndex[i] = bestNum;
+	}
+	for (i = 0;i < branchArray->m_count-1;i++)
+	{
+		if (branchArray->m_sortIndex[i] == branchArray->m_sortIndex[branchArray->m_count-1])
+		{
+			break;
+		}
+	}
+}
+
+RTREE_TEMPLATE
+void RTREE_QUAL::sortAssistNumByAxis(BranchArray* branchArray, int partitionAxis)
+{
+	int i, j;
+	for (i = 0;i < branchArray->m_count;i++)
+	{
+		if (branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis] > branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis])
+		{
+			branchArray->m_sortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis];
+			branchArray->m_assistSortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis];
+		}
+		else
+		{
+			branchArray->m_sortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_max[partitionAxis];
+			branchArray->m_assistSortNumber[i] = branchArray->m_branchBuf[i].m_rect.m_min[partitionAxis];
+		}
+	}
+	double best, lastBest = -1;
+	int bestNum;
+	bool firstTime = true;
+	bool *visited = new bool[MAXNODES+1];
+	for (i = 0;i < MAXNODES+1;i++)
+	{
+		visited[i] = false;
+	}
+
+	for (i = 0;i < branchArray->m_count;i++)
+	{
+		for (j = 0;j < branchArray->m_count;j++)
+		{
+			if ((firstTime || branchArray->m_assistSortNumber[j] < best) && 
+				(branchArray->m_assistSortNumber[j] > lastBest || (branchArray->m_assistSortNumber[j] == lastBest && visited[j] == false)))
+			{
+				best = branchArray->m_assistSortNumber[j];
+				bestNum = j;
+				firstTime = false;
+			}
+		}
+		firstTime = true;
+		lastBest = best;
+		visited[bestNum] = true;
+		branchArray->m_sortIndex[i] = bestNum;
+	}
+	for (i = 0;i < branchArray->m_count-1;i++)
+	{
+		if (branchArray->m_sortIndex[i] == branchArray->m_sortIndex[branchArray->m_count-1])
+		{
+			break;
+		}
+	}
 }
 
 
@@ -2039,8 +2633,6 @@ void RTREE_QUAL::KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int 
 }
 
 
-
 #undef RTREE_TEMPLATE
 #undef RTREE_QUAL
-
 #endif //RTREE_H

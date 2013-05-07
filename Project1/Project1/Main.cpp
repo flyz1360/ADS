@@ -4,7 +4,6 @@
 // This is a direct port of the C version of the RTree test program.
 //
 #include <opencv2\opencv.hpp>
-#include "opencv2/core/core.hpp"
 #include <string>
 #include <iostream>
 #include "ImageHandler.h"
@@ -15,13 +14,14 @@
 using namespace std;
 using namespace cv;
 
+
 bool MySearchCallback(int id, void* arg) 
 {
   cout << "Hit data rect "<< id+1<< endl;
   return true; // keep going
 }
 
-void constructImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char* inFeatureFilePath, int dim)
+void constructImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char* inFeatureFilePath, int dim)
 {
 	 ifstream fileIn(inFeatureFilePath, ios::in);
 	 //ofstream fileOut("G:\/学业卷H\/大三下课程\/高级数据结构\/课程作业\/ADS-Project1-Release\/ADS-Project1-Release\/data\/color_feature_double.txt", ios::app);
@@ -41,7 +41,7 @@ void constructImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char*
 		 if(feature.length() > 0 && feature[0] == 'r')
 		 {
 			 imageFeature = imageHandler.parseImageFeature(feature,dim);
-			 rtree.Insert(imageFeature.data, imageFeature.data,i);  //将数据添加到RTree中
+			 rtree.Insert(imageFeature.data,i);  //将数据添加到RTree中
 			 i++;
 		 }
 
@@ -51,7 +51,7 @@ void constructImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char*
 
 }
 
-bool searchImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char* getFeatureFilePath, int dim)
+bool searchImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char* getFeatureFilePath, int dim)
 {
 	ifstream fileIn(getFeatureFilePath, ios::in);
 	int i = 0;
@@ -84,34 +84,25 @@ bool searchImageIndexFromFeatureFile(RTree<int,double,8,double> &rtree ,char* ge
 	return 1;
 }
 
+void drawRTree(RTree<int,double,9,double> &rtree)
+{
+	char wndname[] = "Drawing Demo";
+	const int DELAY = 5;
+	int i, width =1000, height = 1000;
+	int x1 = 0, x2 = width, y1 = 0, y2 = height;
+	RNG rng(0xFFFFFFFF);
+	
+	Mat image = Mat::zeros(height, width, CV_8UC3);
+	
+	rtree.drawNode(rtree.m_root, &image, 3);
+
+	imshow(wndname, image);
+	waitKey();
+}
 
 void main()
 {
-	char wndname[] = "Drawing Demo";
-	const int NUMBER = 100;
-	const int DELAY = 5;
-	int lineType = CV_AA; // change it to 8 to see non-antialiased graphics
-	int i, width = 1000, height = 700;
-	int x1 = 0, x2 = width, y1 = 0, y2 = height;
-	RNG rng(0xFFFFFFFF);
-
-	Mat image = Mat::zeros(height, width, CV_8UC3);
-	imshow(wndname, image);
-	for (i = 0; i < 100; i++)
-	{
-		Point center;
-		center.x = rng.uniform(x1, x2);
-		center.y = rng.uniform(y1, y2);
-
-		circle(image, center,1, Scalar(255, 255, 255),
-			1,  lineType);
-
-		imshow(wndname, image);
-	}
-	waitKey();
-
-
-	////1.图像文件相关的处理
+		////1.图像文件相关的处理
 	//ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
 	//
 	//int dimension = 2;//颜色直方图的维度
@@ -122,9 +113,10 @@ void main()
 
 	//3.建立索引
 	//rtree模版将维度包含进去了，因此每次变换味道的时候，救得把r树声明修改一遍，我后面将维度从模版声明分离出来，使其可动态指定
-
-	RTree<int,double,8,double> rtree;
-	//constructImageIndexFromFeatureFile(rtree,getFeatureFile,8);  //读取特征文件数据，建立索引
+	RTree<int,double,9,double> rtree;
+	constructImageIndexFromFeatureFile(rtree,outFeatureFile,9);  //读取特征文件数据，建立索引
+	// 可视化R树索引
+	drawRTree(rtree);
 
 	/*
 	//4.k近邻求取
@@ -140,8 +132,9 @@ void main()
 	}
 	*/
 
+
 	//搜索性能测试
-	searchImageIndexFromFeatureFile(rtree, getFeatureFile, 8);
+	//searchImageIndexFromFeatureFile(rtree, outFeatureFile, 2);
 
 
 

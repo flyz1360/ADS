@@ -11,9 +11,12 @@
 #include"ShapeFourierDescriptor.h"
 #include "FileDirectory.h"
 #include<fstream>
+#define DIM 9
+
 using namespace std;
 using namespace cv;
 
+int searchTime;
 
 bool MySearchCallback(int id, void* arg) 
 {
@@ -21,7 +24,7 @@ bool MySearchCallback(int id, void* arg)
   return true; // keep going
 }
 
-void constructImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char* inFeatureFilePath, int dim)
+void constructImageIndexFromFeatureFile(RTree<int,double,DIM,double> &rtree ,char* inFeatureFilePath, int dim)
 {
 	 ifstream fileIn(inFeatureFilePath, ios::in);
 	 //ofstream fileOut("G:\/学业卷H\/大三下课程\/高级数据结构\/课程作业\/ADS-Project1-Release\/ADS-Project1-Release\/data\/color_feature_double.txt", ios::app);
@@ -30,19 +33,25 @@ void constructImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char*
 	 string feature;
 	 ImageFeature imageFeature;
 	 ImageHandler imageHandler;
-	 char buffer[80];
+	 char buffer[500];
 
-	 while(!fileIn.eof())
+	 cout<<"输入数据集的个数"<<endl;
+	 cin>>searchTime;
+
+	 int time = searchTime;
+	 while(!fileIn.eof() && time>0)
 	 {
 
-		 fileIn.getline(buffer,80);
+		 fileIn.getline(buffer,500);
 		 feature = buffer;
 
 		 if(feature.length() > 0 && feature[0] == 'r')
 		 {
 			 imageFeature = imageHandler.parseImageFeature(feature,dim);
-			 rtree.Insert(imageFeature.data,i);  //将数据添加到RTree中
+			 rtree.Insert(imageFeature.data,imageFeature.data,i);  //将数据添加到RTree中
+			 //rtree.Insert(imageFeature.data,i);  //将数据添加到R+Tree中
 			 i++;
+			 time--;
 		 }
 
 	 }
@@ -51,20 +60,21 @@ void constructImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char*
 
 }
 
-bool searchImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char* getFeatureFilePath, int dim)
+bool searchImageIndexFromFeatureFile(RTree<int,double,DIM,double> &rtree ,char* getFeatureFilePath, int dim)
 {
 	ifstream fileIn(getFeatureFilePath, ios::in);
+	ofstream fileout(OutPutFile, ios::out);
 	int i = 0;
 
 	string feature;
 	ImageFeature imageFeature;
 	ImageHandler imageHandler;
-	char buffer[80];
+	char buffer[500];
 
-	while(!fileIn.eof())
+	while(!fileIn.eof() && searchTime>0)
 	{
 
-		fileIn.getline(buffer,80);
+		fileIn.getline(buffer,500);
 		feature = buffer;
 
 		if(feature.length() > 0 && feature[0] == 'r')
@@ -73,18 +83,25 @@ bool searchImageIndexFromFeatureFile(RTree<int,double,9,double> &rtree ,char* ge
 			//rtree.Insert(imageFeature.data, imageFeature.data,i);  //将数据添加到RTree中
 			rtree.Search(imageFeature.data, imageFeature.data, MySearchCallback, NULL);
 			i++;
+
 			printf("%d\n", rtree.visitCount);
+			fileout<<rtree.visitCount<<endl;
+
 			rtree.visitCount = 0;
+
+
+			searchTime--;
 		}
 
 	}
 	printf("%d\n", i);
 	fileIn.close();
+	fileout.close();
 
 	return 1;
 }
 
-void drawRTree(RTree<int,double,9,double> &rtree)
+void drawRTree(RTree<int,double,DIM,double> &rtree)
 {
 	char wndname[] = "Drawing Demo";
 	const int DELAY = 5;
@@ -113,10 +130,11 @@ void main()
 
 	//3.建立索引
 	//rtree模版将维度包含进去了，因此每次变换味道的时候，救得把r树声明修改一遍，我后面将维度从模版声明分离出来，使其可动态指定
-	RTree<int,double,9,double> rtree;
-	constructImageIndexFromFeatureFile(rtree,outFeatureFile,9);  //读取特征文件数据，建立索引
+	RTree<int,double,DIM,double> rtree;
+	constructImageIndexFromFeatureFile(rtree,FeatureFile,DIM);  //读取特征文件数据，建立索引
+
 	// 可视化R树索引
-	drawRTree(rtree);
+	//drawRTree(rtree);
 
 	/*
 	//4.k近邻求取
@@ -134,7 +152,7 @@ void main()
 
 
 	//搜索性能测试
-	//searchImageIndexFromFeatureFile(rtree, outFeatureFile, 2);
+	searchImageIndexFromFeatureFile(rtree, FeatureFile, DIM);
 
 
 
@@ -156,4 +174,6 @@ void main()
 	cvNamedWindow("mainWin", CV_WINDOW_AUTOSIZE); //定义窗口
     cvShowImage("mainWin", Img2 );   //在窗口显示
 	cvReleaseImage(&Img2);*/
+	getchar();
+	getchar();
 }

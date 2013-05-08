@@ -98,7 +98,7 @@ public:
   /// \param a_min Min of bounding rect
   /// \param a_max Max of bounding rect
   /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
-  void NewRemove(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId);
+  void RemovePoint(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId);
 
 
   /*------------------------------------------------------*/
@@ -419,9 +419,9 @@ public:
   bool SaveRec(Node* a_node, RTFileStream& a_stream);
   bool LoadRec(Node* a_node, RTFileStream& a_stream);
 
-  bool NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_root);
-  bool NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
-  bool NewOverlap(Point* a_point, Rect* a_rectB);
+  bool RemovePoint(Point* a_point, const DATATYPE& a_id, Node** a_root);
+  bool RemovePointPoi(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
+  bool OverlapPoint(Point* a_point, Rect* a_rectB);
 
   void NewSplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
   void GetBranches(Node* a_node, Branch* a_branch, BranchArray* branchArray);
@@ -648,7 +648,7 @@ void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMD
 }
 
 RTREE_TEMPLATE
-void RTREE_QUAL::NewRemove(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId)
+void RTREE_QUAL::RemovePoint(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dataId)
 {
 	Point po;
 	for (int axis=0; axis<NUMDIMS; axis++)
@@ -656,7 +656,7 @@ void RTREE_QUAL::NewRemove(const ELEMTYPE apoint[NUMDIMS], const DATATYPE& a_dat
 		po.m[axis] = apoint[axis];
 	}
 
-	NewRemoveRect(&po, a_dataId, &m_root);
+	RemovePoint(&po, a_dataId, &m_root);
 }
 
 
@@ -1383,7 +1383,7 @@ int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
 
 	for(int index=0; index < a_node->m_count; ++index)
 	{
-		if (NewOverlap(a_point, &a_node->m_branch[index].m_rect))
+		if (OverlapPoint(a_point, &a_node->m_branch[index].m_rect))
 		{
 			return index;
 		}
@@ -1482,7 +1482,7 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 				NewAddBranch(&branch, a_node, NULL);
 				if (a_point->m[bestPartition] > bestBorder)
 				*index = a_node->m_count - 1;
-				tempRect = a_node->m_branch[*index].m_rect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
+				tempRect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
 			}
 			else
 			{
@@ -1523,6 +1523,7 @@ void RTREE_QUAL::setNode(Node* a_node, Point* a_point)
 {
 	if (a_node->m_level == 1)
 	{
+		a_node->m_count = 0;
 		Branch branch;
 		for(int axis=0; axis<NUMDIMS; ++axis)
 		{
@@ -1738,6 +1739,11 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 	for (i = 0;i < NUMDIMS;i++)
 	{
 		splitNumber = 0;
+<<<<<<< HEAD
+		coverNum = MINNODES;
+=======
+		coverNum=MINNODES;
+>>>>>>> f940720e42e9bdce0368380a7cc1825e8feb2348
 		sortAssistNumByAxis(branchArray, i);
 		bottom = branchArray->m_sortNumber[branchArray->m_sortIndex[0]];
 		border = branchArray->m_assistSortNumber[branchArray->m_sortIndex[0]];
@@ -1778,7 +1784,7 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 			bestDistance = border - bottom;
 			bestBorder = border;
 		}
-	}
+	}	
 
 	Partition(branchArray, a_node, a_newNode, bestPatition, bestBorder);
 }
@@ -2278,14 +2284,14 @@ bool RTREE_QUAL::RemoveRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root)
 }
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_root)
+bool RTREE_QUAL::RemovePoint(Point* a_point, const DATATYPE& a_id, Node** a_root)
 {
 	ASSERT(*a_root);
 
 	Node* tempNode;
 	ListNode* reInsertList = NULL;
 
-	if (!NewRemoveRectRec(a_point, a_id, *a_root, &reInsertList))
+	if (!RemovePointPoi(a_point, a_id, *a_root, &reInsertList))
 	{
 		while(reInsertList)
 		{
@@ -2321,7 +2327,7 @@ bool RTREE_QUAL::NewRemoveRect(Point* a_point, const DATATYPE& a_id, Node** a_ro
 }
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode)
+bool RTREE_QUAL::RemovePointPoi(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode)
 {
 	ASSERT(a_node && a_listNode);
 	ASSERT(a_node->m_level >= 0);
@@ -2330,9 +2336,9 @@ bool RTREE_QUAL::NewRemoveRectRec(Point* a_point, const DATATYPE& a_id, Node* a_
 	{
 		for (int index=0; index<a_node->m_count; index++)
 		{
-			if (NewOverlap(a_point, &(a_node->m_branch[index].m_rect)))
+			if (OverlapPoint(a_point, &(a_node->m_branch[index].m_rect)))
 			{
-				if (!NewRemoveRectRec(a_point, a_id, a_node->m_branch[index].m_child, a_listNode))
+				if (!RemovePointPoi(a_point, a_id, a_node->m_branch[index].m_child, a_listNode))
 				{
 					if (a_node->m_branch[index].m_child->m_count >= MINNODES)
 					{
@@ -2431,7 +2437,7 @@ bool RTREE_QUAL::Overlap(Rect* a_rectA, Rect* a_rectB)
 }
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::NewOverlap(Point* a_point, Rect* a_rectB)
+bool RTREE_QUAL::OverlapPoint(Point* a_point, Rect* a_rectB)
 {
 	ASSERT(a_rectB);
 

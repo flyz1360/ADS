@@ -441,10 +441,11 @@ public:
 	  {
 		  for (int i = 0;i < a_node->m_count;i++)
 		  {
-			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/7;
-			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/7;
-			  p2.x = a_node->m_branch[i].m_rect.m_min[0]/7;
-			  p2.y = a_node->m_branch[i].m_rect.m_min[1]/7;
+			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/10;
+			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/10;
+			  p2.x = a_node->m_branch[i].m_rect.m_min[0]/10;
+			  p2.y = a_node->m_branch[i].m_rect.m_min[1]/10;
+			  
 			  rectangle( *image, p1, p2, Scalar(255, 255, 255), wid, CV_AA );
 			  imshow(wndname, *image);
 			  if(waitKey(5) >= 0) return;
@@ -458,8 +459,8 @@ public:
 	  {
 		  for (int i = 0;i < a_node->m_count;i++)
 		  {
-			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/7;
-			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/7;
+			  p1.x = a_node->m_branch[i].m_rect.m_max[0]/10;
+			  p1.y = a_node->m_branch[i].m_rect.m_max[1]/10;
 			  circle( *image, p1, 1, Scalar(255, 255, 255), 1, CV_AA );
 		  }
 	  }
@@ -1740,13 +1741,19 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 	{
 		splitNumber = 0;
 		coverNum=MINNODES;
-		sortAssistNumByAxis(branchArray, i);
+		sortByAxis(branchArray, i);
 		bottom = branchArray->m_sortNumber[branchArray->m_sortIndex[0]];
-		border = branchArray->m_assistSortNumber[branchArray->m_sortIndex[0]];
-		for (j = 1;j < MINNODES;j++)
+		border = branchArray->m_sortNumber[branchArray->m_sortIndex[branchArray->m_count-1]];
+		sortAssistNumByAxis(branchArray, i);
+		for (j = MINNODES-1;j >= 0;j--)
 		{
-			border = Max(border, branchArray->m_assistSortNumber[branchArray->m_sortIndex[j]]);
+			if (branchArray->m_assistSortNumber[branchArray->m_sortIndex[j]] < border)
+			{
+				border = branchArray->m_assistSortNumber[branchArray->m_sortIndex[j]];
+				break;
+			}
 		}
+		j++;
 		for (;j < branchArray->m_count;j++)
 		{
 			//if (branchArray->m_sortNumber[branchArray->m_sortIndex[j]] > border)
@@ -1762,7 +1769,7 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 				coverNum++;
 			}
 		}
-		if (coverNum > MAXNODES)
+		if (coverNum > MAXNODES || splitNumber > MINNODES)
 		{
 			continue;
 		}

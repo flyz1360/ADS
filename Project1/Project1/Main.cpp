@@ -11,7 +11,7 @@
 #include"ShapeFourierDescriptor.h"
 #include "FileDirectory.h"
 #include<fstream>
-#define DIM 9
+#define DIM 2
 
 using namespace std;
 using namespace cv;
@@ -35,11 +35,11 @@ void constructImageIndexFromFeatureFile(RTree<int,double,DIM,double> &rtree ,cha
 	 ImageHandler imageHandler;
 	 char buffer[500];
 
-	 cout<<"输入数据集的个数"<<endl;
-	 cin>>searchTime;
+	 //cout<<"输入数据集的个数"<<endl;
+	 //cin>>searchTime;
 
 	 int time = searchTime;
-	 while(!fileIn.eof() && time>0)
+	 while(!fileIn.eof() )
 	 {
 
 		 fileIn.getline(buffer,500);
@@ -48,10 +48,10 @@ void constructImageIndexFromFeatureFile(RTree<int,double,DIM,double> &rtree ,cha
 		 if(feature.length() > 0 && feature[0] == 'r')
 		 {
 			 imageFeature = imageHandler.parseImageFeature(feature,dim);
-			 rtree.Insert(imageFeature.data,imageFeature.data,i);  //将数据添加到RTree中
+			 rtree.Insert(imageFeature.data,i);  //将数据添加到RTree中
 			 //rtree.Insert(imageFeature.data,i);  //将数据添加到R+Tree中
 			 i++;
-			 time--;
+			 //time--;
 		 }
 
 	 }
@@ -105,7 +105,7 @@ void drawRTree(RTree<int,double,DIM,double> &rtree)
 {
 	char wndname[] = "Drawing Demo";
 	const int DELAY = 5;
-	int i, width =1000, height = 1000;
+	int i, width =800, height = 800;
 	int x1 = 0, x2 = width, y1 = 0, y2 = height;
 	RNG rng(0xFFFFFFFF);
 	
@@ -119,13 +119,13 @@ void drawRTree(RTree<int,double,DIM,double> &rtree)
 
 void main()
 {
-		////1.图像文件相关的处理
+	//1.图像文件相关的处理
 	//ImageHandler imageHandler = ImageHandler();  //初始化图像处理类  
 	//
 	//int dimension = 2;//颜色直方图的维度
 	//imageHandler.inputImageInformation(imageListFile);//输入图像信息
 
-	////2.提取特征信息:通用，只要传入一个特征提取函数（第一个参数）
+	//2.提取特征信息:通用，只要传入一个特征提取函数（第一个参数）
 	//imageHandler.exportFeatrueFile(extractShapeFourierDescriptor,imageListFile,fileDepositoryPath,outFeatureFile,dimension);
 
 	//3.建立索引
@@ -152,7 +152,7 @@ void main()
 
 
 	//搜索性能测试
-	searchImageIndexFromFeatureFile(rtree, FeatureFile, DIM);
+	//searchImageIndexFromFeatureFile(rtree, FeatureFile, DIM);
 
 
 

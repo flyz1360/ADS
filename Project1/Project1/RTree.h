@@ -1739,11 +1739,7 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 	for (i = 0;i < NUMDIMS;i++)
 	{
 		splitNumber = 0;
-<<<<<<< HEAD
-		coverNum = MINNODES;
-=======
 		coverNum=MINNODES;
->>>>>>> f940720e42e9bdce0368380a7cc1825e8feb2348
 		sortAssistNumByAxis(branchArray, i);
 		bottom = branchArray->m_sortNumber[branchArray->m_sortIndex[0]];
 		border = branchArray->m_assistSortNumber[branchArray->m_sortIndex[0]];

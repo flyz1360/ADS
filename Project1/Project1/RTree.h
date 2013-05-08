@@ -83,6 +83,9 @@ public:
   /// \param a_max Max of bounding rect
   /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
   void Insert(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const DATATYPE& a_dataId);
+  /// *----------------------R+ Insert-----------------------*/
+  /// \param a Inserting point
+  /// \param a_dataId Positive Id of data.  Maybe zero, but negative numbers not allowed.
   void Insert(const ELEMTYPE a[NUMDIMS], const DATATYPE& a_dataId);
   
   /// Remove entry
@@ -377,20 +380,13 @@ public:
   void FreeNode(Node* a_node);
   void InitNode(Node* a_node);
   void InitRect(Rect* a_rect);
-  bool InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
   bool InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
-  bool InsertPoint(Point* a_point, const DATATYPE& a_id, Node** a_root, int a_level);
   bool InsertRect(Rect* a_rect, const DATATYPE& a_id, Node** a_root, int a_level);
   Rect NodeCover(Node* a_node);
   bool AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
-  bool NewAddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
   void DisconnectBranch(Node* a_node, int a_index);
   int PickBranch(Rect* a_rect, Node* a_node);
-  int PickBranchSimple(Point* a_point, Node* a_node);
-  int PickBranch(Point* a_point, Node* a_node);
-  bool ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, int* index);
   Rect CombineRect(Rect* a_rectA, Rect* a_rectB);
-  Rect EnlargeRect(Point* a_point, Rect* a_rectB);
   void SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
   ELEMTYPEREAL RectSphericalVolume(Rect* a_rect);
   ELEMTYPEREAL RectVolume(Rect* a_rect);
@@ -411,18 +407,34 @@ public:
   void RemoveAllRec(Node* a_node);
   void Reset();
   void CountRec(Node* a_node, int& a_count);
-  /*计算node的k近邻的函数，输入k，和结果数组的引用，结果类型的id列表*/
-  ELEMTYPE minDist(Rect* a_rect, ELEMTYPE queryPoint[NUMDIMS]);
-  void KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double& ndistance);
-
+  
 
   bool SaveRec(Node* a_node, RTFileStream& a_stream);
   bool LoadRec(Node* a_node, RTFileStream& a_stream);
 
+  /*-------------------------------
+  FUNCTIONS WE WRITE
+  ---------------------------------*/
+
+  /*计算node的k近邻的函数，输入k，和结果数组的引用，结果类型的id列表*/
+  ELEMTYPE minDist(Rect* a_rect, ELEMTYPE queryPoint[NUMDIMS]);
+  void KNearNeighbour(ELEMTYPE queryPoint[NUMDIMS], Node* a_node, int k, NeighbourNode* knnList, double& ndistance);
+
+  // Remove
   bool RemovePoint(Point* a_point, const DATATYPE& a_id, Node** a_root);
   bool RemovePointPoi(Point* a_point, const DATATYPE& a_id, Node* a_node, ListNode** a_listNode);
   bool OverlapPoint(Point* a_point, Rect* a_rectB);
 
+  // Insert
+  int PickBranchSimple(Point* a_point, Node* a_node);
+  int PickBranch(Point* a_point, Node* a_node);
+  bool InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level);
+  bool InsertPoint(Point* a_point, const DATATYPE& a_id, Node** a_root, int a_level);
+  bool NewAddBranch(Branch* a_branch, Node* a_node, Node** a_newNode);
+  bool ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, int* index);
+  Rect EnlargeRect(Point* a_point, Rect* a_rectB);
+
+  // Split
   void NewSplitNode(Node* a_node, Branch* a_branch, Node** a_newNode);
   void GetBranches(Node* a_node, Branch* a_branch, BranchArray* branchArray);
   void ChoosePartition(BranchArray* branchArray, Node* a_node, Node* a_newNode);
@@ -432,7 +444,7 @@ public:
   void ChoosePartitionValue(Point* a_point, Rect rectA, Rect rectB, double* bestBorder, int* bestPartition);
   void setNode(Node* a_node, Point* a_point);
 
-  // need delete
+  // draw R-tree
   void drawNode(Node* a_node , Mat* image, int wid)
   {
 	  char wndname[] = "Drawing Demo";
@@ -1057,6 +1069,7 @@ bool RTREE_QUAL::InsertRectRec(Rect* a_rect, const DATATYPE& a_id, Node* a_node,
   }
 }
 
+// Inserts a new point which remain the index structure being free with overlap
 RTREE_TEMPLATE
 bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_node, Node** a_newNode, int a_level)
  {
@@ -1070,26 +1083,28 @@ bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_no
 	 // Still above level for insertion, go down tree recursively
 	 if(a_node->m_level > a_level)
 	 {
+		 // pick a branch which has Min increasing area and won't overlap with other MBR
 		 index = PickBranch(a_point, a_node);
-		 // pickBranch fail, need split
-		 if (index == -1)
+		
+		 if (index == -1) // pickBranch fail, this node need reorganize
 		 {
 			 Node* uselessNode;
-			 if (ReorganizeNode(a_point, a_node, a_newNode, &index))
+			 if (ReorganizeNode(a_point, a_node, a_newNode, &index)) 
 			 {
-				 // Child was split
+				 // this node was split
 				 ASSERT(!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &uselessNode, a_level));
-				 a_node->m_branch[index].m_rect = NodeCover(a_node->m_branch[index].m_child);
+				 a_node->m_branch[index].m_rect =  EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
 				 return true;
 			 }
 			 else
 			 {
+				  // this node was not split
 				ASSERT(!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &uselessNode, a_level));
 				a_node->m_branch[index].m_rect = EnlargeRect(a_point, &(a_node->m_branch[index].m_rect));
 				return false;
 			 }
 		 }
-		 else
+		 else //pickBranch succeed, just insert the point to the picked branch
 		 {
 			 if (!InsertPointPot(a_point, a_id, a_node->m_branch[index].m_child, &otherNode, a_level))
 			 {
@@ -1108,6 +1123,7 @@ bool RTREE_QUAL::InsertPointPot(Point* a_point, const DATATYPE& a_id, Node* a_no
 	 }
 	 else if(a_node->m_level == a_level) // Have reached level for insertion. Add rect, split if necessary
 	 {
+		 // convert the point to the form of rect so that it can be stored
 		 Rect rect;
 		 for(int axis=0; axis<NUMDIMS; ++axis)
 		 {
@@ -1250,7 +1266,7 @@ bool RTREE_QUAL::AddBranch(Branch* a_branch, Node* a_node, Node** a_newNode)
   }
 }
 
-
+// different from the function above for calling NewSplit()
 RTREE_TEMPLATE
 bool RTREE_QUAL::NewAddBranch(Branch* a_branch, Node* a_node, Node** a_newNode)
 {
@@ -1330,43 +1346,7 @@ int RTREE_QUAL::PickBranch(Rect* a_rect, Node* a_node)
   return best;
 }
 
-RTREE_TEMPLATE
-int RTREE_QUAL::PickBranchSimple(Point* a_point, Node* a_node)
-{
-	ASSERT(a_point && a_node);
-
-	bool firstTime = true;
-	ELEMTYPEREAL increase;
-	ELEMTYPEREAL bestIncr = (ELEMTYPEREAL)-1;
-	ELEMTYPEREAL area;
-	ELEMTYPEREAL bestArea;
-	int best;
-	Rect tempRect;
-
-	for(int index=0; index < a_node->m_count; ++index)
-	{
-		Rect* curRect = &a_node->m_branch[index].m_rect;
-		area = CalcRectVolume(curRect);
-		tempRect = EnlargeRect(a_point, curRect);
-		increase = CalcRectVolume(&tempRect) - area;
-		if((increase < bestIncr) || firstTime)
-		{
-			best = index;
-			bestArea = area;
-			bestIncr = increase;
-			firstTime = false;
-		}
-		else if((increase == bestIncr) && (area < bestArea))
-		{
-			best = index;
-			bestArea = area;
-			bestIncr = increase;
-		}
-	}
-	return best;
-}
-
-
+// pick one branch which has  the smallest increase and won't overlap with other branches
 RTREE_TEMPLATE
 int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
 {
@@ -1421,12 +1401,50 @@ int RTREE_QUAL::PickBranch(Point* a_point, Node* a_node)
 	return best;
 }
 
+// pick one best branch, regardless the overlap
+RTREE_TEMPLATE
+int RTREE_QUAL::PickBranchSimple(Point* a_point, Node* a_node)
+{
+	ASSERT(a_point && a_node);
 
+	bool firstTime = true;
+	ELEMTYPEREAL increase;
+	ELEMTYPEREAL bestIncr = (ELEMTYPEREAL)-1;
+	ELEMTYPEREAL area;
+	ELEMTYPEREAL bestArea;
+	int best;
+	Rect tempRect;
+
+	for(int index=0; index < a_node->m_count; ++index)
+	{
+		Rect* curRect = &a_node->m_branch[index].m_rect;
+		area = CalcRectVolume(curRect);
+		tempRect = EnlargeRect(a_point, curRect);
+		increase = CalcRectVolume(&tempRect) - area;
+		if((increase < bestIncr) || firstTime)
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+			firstTime = false;
+		}
+		else if((increase == bestIncr) && (area < bestArea))
+		{
+			best = index;
+			bestArea = area;
+			bestIncr = increase;
+		}
+	}
+	return best;
+}
+
+// reorganize the tree so that the point can be inserted without leading overlap
 RTREE_TEMPLATE
 bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, int* index)
 {
 	ASSERT(a_point && a_node);
 
+	// find a best branch
 	*index = PickBranchSimple(a_point, a_node);
 	Rect tempRect;
 
@@ -1435,6 +1453,7 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 	int bestPartition;
 	double bestBorder;
 	tempRect = EnlargeRect(a_point, &a_node->m_branch[*index].m_rect);
+	// find the overlap rect
 	for (int i = 0;i < a_node->m_count ;i++)
 	{
 		if (i == *index)
@@ -1443,7 +1462,7 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 		}
 		if (Overlap(&a_node->m_branch[i].m_rect, &tempRect))
 		{
-
+			// choose one axis to divid the best branch
 			ChoosePartitionValue(a_point, tempRect, a_node->m_branch[i].m_rect, &bestBorder, &bestPartition);
 			if (a_node->m_count  < MAXNODES)
 			{
@@ -1480,6 +1499,8 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 				}
 				else
 					branch.m_rect = NodeCover( branch.m_child);		
+
+				// add the new branch to the node and update the index&rect
 				NewAddBranch(&branch, a_node, NULL);
 				if (a_point->m[bestPartition] > bestBorder)
 				*index = a_node->m_count - 1;
@@ -1487,7 +1508,7 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 			}
 			else
 			{
-				//split node   rewrite newSplit
+				//split node   
 				isSplit = true;
 				BranchArray branchArray1;
 				int level = a_node->m_level;
@@ -1519,6 +1540,8 @@ bool RTREE_QUAL::ReorganizeNode(Point* a_point, Node* a_node, Node** a_newNode, 
 	return isSplit;
 }
 
+// set the node recursively, using the param a_point
+// so that the node has one empty branch whose bounding rect is the point 
 RTREE_TEMPLATE
 void RTREE_QUAL::setNode(Node* a_node, Point* a_point)
 {
@@ -1553,6 +1576,7 @@ void RTREE_QUAL::setNode(Node* a_node, Point* a_point)
 	}
 }
 
+// choose the partition asix and value to split rectA so that after insertion it won't overlap with rectB
 RTREE_TEMPLATE
 void RTREE_QUAL::ChoosePartitionValue(Point* a_point, Rect rectA, Rect rectB, double* bestBorder, int* bestPartition)
 {
@@ -1638,7 +1662,7 @@ typename RTREE_QUAL::Rect RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a_rectB)
   return newRect;
 }
 
-
+// enlarge the rect so that the point is inside the rect
 RTREE_TEMPLATE
 typename RTREE_QUAL::Rect RTREE_QUAL::EnlargeRect(Point* a_point, Rect* a_rectB)
 {
@@ -1686,7 +1710,7 @@ void RTREE_QUAL::SplitNode(Node* a_node, Branch* a_branch, Node** a_newNode)
   ASSERT((a_node->m_count + (*a_newNode)->m_count) == parVars->m_total);
 }
 
-
+// COOL split function which won't cause ANY overlap in the whole tree
 RTREE_TEMPLATE
 void RTREE_QUAL::NewSplitNode(Node* a_node, Branch* a_branch, Node** a_newNode)
 {
@@ -1728,6 +1752,8 @@ void RTREE_QUAL::GetBranches(Node* a_node, Branch* a_branch, BranchArray* branch
 	InitNode(a_node);
 }
 
+// partition function
+// choose a partition axis and border, divide the branch in branchArray into two nodes
 RTREE_TEMPLATE
 void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* a_newNode)
 {
@@ -1737,6 +1763,9 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 	double border, bottom, bestDistance, bestBorder;
 
 	// 选取最佳分割维度
+	// major factor is the split number, the smaller, the better
+	// minor factor is the distance between the bottom and partition border along the axis, the bigger, the better
+	// because we don't want the rect to be too thin
 	for (i = 0;i < NUMDIMS;i++)
 	{
 		splitNumber = 0;
@@ -1753,13 +1782,9 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 				break;
 			}
 		}
-		j++;
-		for (;j < branchArray->m_count;j++)
+		
+		for (j++;j < branchArray->m_count;j++)
 		{
-			//if (branchArray->m_sortNumber[branchArray->m_sortIndex[j]] > border)
-			//{
-			//	break;
-			//}
 			if (branchArray->m_sortNumber[branchArray->m_sortIndex[j]] <= border)
 			{
 				splitNumber++;
@@ -1773,7 +1798,7 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 		{
 			continue;
 		}
-		if ((firstTime || splitNumber < bestSplitNumber))//最大的min不能比border宽 branchArray->m_sortNumber[branchArray->m_sortIndex[branchArray->m_count]] > border
+		if ((firstTime || splitNumber < bestSplitNumber))
 		{
 			bestPatition = i;
 			bestSplitNumber = splitNumber;
@@ -1789,6 +1814,7 @@ void RTREE_QUAL:: ChoosePartition(BranchArray* branchArray, Node* a_node, Node* 
 		}
 	}	
 
+	// split the original node into two nodes according to the best partition axis and border
 	Partition(branchArray, a_node, a_newNode, bestPatition, bestBorder);
 }
 
@@ -1801,43 +1827,24 @@ void RTREE_QUAL::Partition(BranchArray* branchArray, Node* a_node, Node* a_newNo
 	{
 		if (branchArray->m_assistSortNumber[branchArray->m_sortIndex[i]] <= bestBorder)
 		{
+			// add the branch to a_node if the branch is under the border
 			NewAddBranch(&branchArray->m_branchBuf[branchArray->m_sortIndex[i]], a_node, NULL);
 		}
 		else if (branchArray->m_sortNumber[branchArray->m_sortIndex[i]] > bestBorder)
 		{
+			// add the branch to a_newNode if the branch is above the border
 			NewAddBranch(&branchArray->m_branchBuf[branchArray->m_sortIndex[i]], a_newNode, NULL);
 		}
 		else
 		{
+			// KEY POINT
+			// if the border cross the branch, the branch need to be split into two branched 
+			// so that each of the branch is totally inside one node
 			BranchArray bra;
 			GetBranches(branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child, NULL, &bra);
 			branch.m_child =  AllocNode();
 			branch.m_child->m_level =
 				branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child->m_level = a_node->m_level - 1;
-			//branch.m_rect = branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect;
-
-			//sortByAxis(&bra, bestPatition);
-			//if (bra.m_sortNumber[0] == bra.m_assistSortNumber[0])
-			//{
-			//	for (int j = 0;j < bra.m_count;j++)
-			//	{
-			//		if (bra.m_sortNumber[bra.m_sortIndex[j]] < bestBorder)
-			//		{
-			//			branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect.m_max[bestPatition] = bra.m_sortNumber[bra.m_sortIndex[j]];
-			//		}
-			//		else
-			//		{
-			//			 branch.m_rect.m_min[bestPatition]= bra.m_sortNumber[bra.m_sortIndex[j]];
-			//			break;
-			//		}
-			//	}
-			//}
-			//else
-			//{
-			//	branch.m_rect.m_min[bestPatition] = bestBorder+ 0.0000001;
-			//	branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_rect.m_max[bestPatition] = bestBorder;
-			//}
-
 
 			Partition(&bra,branchArray->m_branchBuf[branchArray->m_sortIndex[i]].m_child, branch.m_child, 
 				bestPatition, bestBorder);
@@ -1849,6 +1856,7 @@ void RTREE_QUAL::Partition(BranchArray* branchArray, Node* a_node, Node* a_newNo
 	}
 }
 
+// sort the branch in branchArray along partitionAxis according to the bottom value, which is the m_sortNumber in the branchArray
 RTREE_TEMPLATE
 void RTREE_QUAL::sortByAxis(BranchArray* branchArray, int partitionAxis)
 {
@@ -1901,6 +1909,7 @@ void RTREE_QUAL::sortByAxis(BranchArray* branchArray, int partitionAxis)
 	}
 }
 
+// sort the branch in branchArray along partitionAxis according to the top value, which is the m_assistSortNumber in the branchArray
 RTREE_TEMPLATE
 void RTREE_QUAL::sortAssistNumByAxis(BranchArray* branchArray, int partitionAxis)
 {

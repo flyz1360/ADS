@@ -134,7 +134,7 @@ void main()
 	constructImageIndexFromFeatureFile(rtree,FeatureFile,DIM);  //读取特征文件数据，建立索引
 
 	// 可视化R树索引
-	//drawRTree(rtree);
+	drawRTree(rtree);
 
 	/*
 	//4.k近邻求取
